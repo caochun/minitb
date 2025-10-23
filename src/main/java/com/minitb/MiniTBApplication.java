@@ -41,7 +41,9 @@ public class MiniTBApplication {
             RuleChain rootRuleChain = new RuleChain("Root Rule Chain");
             rootRuleChain
                     .addNode(new LogNode("入口日志"))
-                    .addNode(new FilterNode("temperature", 20.0)) // 只处理温度>20的数据
+                    // 注意: FilterNode会过滤temperature>20的数据
+                    // CPU指标(process_cpu_seconds_total)不会被过滤，直接通过
+                    .addNode(new FilterNode("temperature", 20.0))
                     .addNode(new LogNode("过滤后日志"))
                     .addNode(new SaveTelemetryNode(storage))
                     .addNode(new LogNode("保存完成"));
@@ -70,22 +72,22 @@ public class MiniTBApplication {
                 transportService
             );
             
-            // 注册需要拉取的设备
-            // 假设在Prometheus中有一个设备ID为 "prom-device-001" 的设备
+            // 注册Prometheus自身作为监控设备
+            // 从Prometheus拉取它自己的CPU使用率
             promPuller.registerDevice(
-                "prom-device-001",              // Prometheus中的设备ID
-                "test-token-prom",              // MiniTB中的设备token
-                Arrays.asList("temperature", "humidity")  // 拉取的指标
+                "localhost:9090",              // Prometheus instance
+                "test-token-prom",             // MiniTB中的设备token
+                Arrays.asList("process_cpu_seconds_total")  // CPU使用率指标
             );
             
-            // 启动定时拉取（每30秒拉取一次）
-            int pullInterval = 30;
+            // 启动定时拉取（每10秒拉取一次，更快看到效果）
+            int pullInterval = 10;
             String intervalEnv = System.getenv("PROMETHEUS_PULL_INTERVAL");
             if (intervalEnv != null && !intervalEnv.isEmpty()) {
                 try {
                     pullInterval = Integer.parseInt(intervalEnv);
                 } catch (NumberFormatException e) {
-                    log.warn("无效的拉取间隔: {}, 使用默认值30秒", intervalEnv);
+                    log.warn("无效的拉取间隔: {}, 使用默认值10秒", intervalEnv);
                 }
             }
             promPuller.start(pullInterval);
@@ -93,7 +95,8 @@ public class MiniTBApplication {
             log.info("Prometheus数据拉取器已启动:");
             log.info("  - 目标地址: {}", prometheusUrl);
             log.info("  - 拉取间隔: {}秒", pullInterval);
-            log.info("  - 注册设备: {} 个", promPuller.getRegisteredDeviceCount());
+            log.info("  - 监控设备: Prometheus自身 (localhost:9090)");
+            log.info("  - 拉取指标: process_cpu_seconds_total (CPU使用时间)");
             
             // 打印使用说明
             printUsageInstructions();

@@ -125,12 +125,25 @@ public class PrometheusDataPuller {
         
         for (String metricName : config.getMetrics()) {
             // 构造PromQL查询（查询最新值）
-            // 例如: device_temperature{device_id="xxx"}
-            String promQL = String.format(
-                "%s{device_id=\"%s\"}", 
-                metricName, 
-                config.getDeviceId()
-            );
+            // 支持两种格式:
+            // 1. 自定义device_id: device_temperature{device_id="xxx"}
+            // 2. Prometheus instance: process_cpu_seconds_total{instance="localhost:9090"}
+            String promQL;
+            if (config.getDeviceId().contains(":")) {
+                // 使用instance标签（Prometheus标准格式）
+                promQL = String.format(
+                    "%s{instance=\"%s\"}", 
+                    metricName, 
+                    config.getDeviceId()
+                );
+            } else {
+                // 使用device_id标签（自定义格式）
+                promQL = String.format(
+                    "%s{device_id=\"%s\"}", 
+                    metricName, 
+                    config.getDeviceId()
+                );
+            }
             
             // 调用Prometheus HTTP API
             String url = String.format(
@@ -139,7 +152,7 @@ public class PrometheusDataPuller {
                 URLEncoder.encode(promQL, StandardCharsets.UTF_8)
             );
             
-            log.debug("查询Prometheus: {}", url);
+            log.debug("查询Prometheus: query={}", promQL);
             
             String response = httpGet(url);
             
