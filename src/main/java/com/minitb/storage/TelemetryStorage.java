@@ -1,6 +1,6 @@
 package com.minitb.storage;
 
-import com.minitb.common.data.DeviceId;
+import com.minitb.common.entity.DeviceId;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.FileWriter;

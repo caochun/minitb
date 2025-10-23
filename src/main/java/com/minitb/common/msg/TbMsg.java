@@ -1,7 +1,7 @@
 package com.minitb.common.msg;
 
-import com.minitb.common.data.DeviceId;
-import com.minitb.common.data.TenantId;
+import com.minitb.common.entity.DeviceId;
+import com.minitb.common.entity.TenantId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

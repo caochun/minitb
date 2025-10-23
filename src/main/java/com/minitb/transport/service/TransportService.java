@@ -2,7 +2,7 @@ package com.minitb.transport.service;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.minitb.common.data.Device;
+import com.minitb.common.entity.Device;
 import com.minitb.common.msg.TbMsg;
 import com.minitb.common.msg.TbMsgType;
 import com.minitb.ruleengine.RuleEngineService;
