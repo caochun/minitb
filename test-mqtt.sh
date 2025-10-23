@@ -49,3 +49,4 @@ echo "测试完成！请查看MiniTB的日志输出"
 echo "数据文件位置: minitb/data/telemetry_*.log"
 echo "========================================="
 
+

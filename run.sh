@@ -24,3 +24,4 @@ echo ""
 # 运行程序
 mvn exec:java -Dexec.mainClass="com.minitb.MiniTBApplication"
 
+
