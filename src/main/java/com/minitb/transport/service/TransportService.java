@@ -38,13 +38,19 @@ public class TransportService {
      * 初始化默认测试设备
      */
     private void initDefaultDevices() {
+        // MQTT设备
         Device device1 = new Device("温度传感器-01", "TemperatureSensor", "test-token-001");
         Device device2 = new Device("湿度传感器-01", "HumiditySensor", "test-token-002");
         
         deviceRegistry.put(device1.getAccessToken(), device1);
         deviceRegistry.put(device2.getAccessToken(), device2);
         
-        log.info("初始化默认设备: {}, {}", device1.getName(), device2.getName());
+        // Prometheus数据源设备
+        Device promDevice = new Device("温度传感器-Prom", "PrometheusDevice", "test-token-prom");
+        deviceRegistry.put(promDevice.getAccessToken(), promDevice);
+        
+        log.info("初始化默认设备: {}, {}, {}", 
+                 device1.getName(), device2.getName(), promDevice.getName());
     }
 
     /**

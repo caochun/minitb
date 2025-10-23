@@ -4,11 +4,19 @@
 
 ## 🎯 核心数据流
 
+### 数据来源1: MQTT推送（实时）
 ```
 设备 → MQTT传输层 → TransportService → TbMsg → Rule Engine → 数据存储
 ```
 
+### 数据来源2: Prometheus拉取（定时）
+```
+设备 → Prometheus → PrometheusDataPuller → TransportService → TbMsg → Rule Engine → 数据存储
+```
+
 ## 🚀 快速开始
+
+### 方式1: MQTT数据推送
 
 ```bash
 # 1. 编译并启动
@@ -26,14 +34,40 @@ mosquitto_pub -h localhost -p 1883 -u test-token-001 \
 tail -f data/telemetry_*.log
 ```
 
+### 方式2: Prometheus数据拉取
+
+```bash
+# 1. 启动Mock Prometheus服务器（终端1）
+cd minitb
+./test-prometheus-mock.sh
+
+# 2. 启动MiniTB（终端2）
+cd minitb
+./run.sh
+
+# MiniTB会自动每30秒从Prometheus拉取数据
+
+# 3. 查看拉取的数据（终端3）
+tail -f minitb/data/telemetry_*.log
+
+# 4. 配置环境变量（可选）
+export PROMETHEUS_URL=http://localhost:9090
+export PROMETHEUS_PULL_INTERVAL=10  # 改为10秒拉取一次
+./run.sh
+```
+
 ## 📁 项目结构
 
 ```
 minitb/
 ├── src/main/java/com/minitb/
 │   ├── common/                          # 公共模块
-│   │   ├── data/                        # Device, DeviceId, TenantId
+│   │   ├── entity/                      # Device, DeviceId, TenantId
 │   │   └── msg/                         # TbMsg, TbMsgType
+│   ├── datasource/                      # 数据源（新增）
+│   │   └── prometheus/                  # Prometheus数据拉取器
+│   │       ├── PrometheusDataPuller.java
+│   │       └── DeviceMetricConfig.java
 │   ├── transport/                       # 传输层
 │   │   ├── mqtt/                        # MqttTransportHandler, MqttTransportService
 │   │   └── service/                     # TransportService
@@ -41,8 +75,10 @@ minitb/
 │   │   ├── node/                        # LogNode, FilterNode, SaveTelemetryNode
 │   │   ├── RuleChain.java
 │   │   └── RuleEngineService.java
-│   └── storage/                         # TelemetryStorage
-└── MiniTBApplication.java               # 主程序
+│   ├── storage/                         # TelemetryStorage
+│   └── MiniTBApplication.java           # 主程序
+├── test-prometheus-mock.sh              # Prometheus Mock服务器
+└── test-mqtt.sh                         # MQTT测试脚本
 ```
 
 ## 🌊 数据流详解
