@@ -1,0 +1,142 @@
+package com.minitb.actor.device;
+
+import com.minitb.actor.MiniTbActor;
+import com.minitb.actor.MiniTbActorContext;
+import com.minitb.actor.MiniTbActorMsg;
+import com.minitb.actor.msg.ToRuleEngineMsg;
+import com.minitb.actor.msg.TransportToDeviceMsg;
+import com.minitb.common.entity.Device;
+import com.minitb.common.entity.DeviceId;
+import com.minitb.common.msg.TbMsg;
+import com.minitb.common.msg.TbMsgType;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * 设备 Actor
+ * 
+ * 职责:
+ * 1. 管理设备会话（连接/断开）
+ * 2. 处理设备上报的遥测数据
+ * 3. 转发消息到规则引擎
+ * 4. 维护设备状态
+ * 
+ * 优势:
+ * - 每个设备独立的消息队列，互不干扰
+ * - 同一设备的消息串行处理，状态一致性
+ * - 异步处理，不阻塞传输层
+ */
+@Slf4j
+public class DeviceActor implements MiniTbActor {
+    
+    private static final String RULE_ENGINE_ACTOR_ID = "RuleEngineActor";
+    
+    private final DeviceId deviceId;
+    private final Device device;
+    
+    // 设备状态
+    private volatile boolean connected = false;
+    private volatile long lastActivityTime = System.currentTimeMillis();
+    
+    // 会话管理（一个设备可能有多个会话，例如MQTT多个连接）
+    private final Map<String, SessionInfo> sessions = new ConcurrentHashMap<>();
+    
+    // Actor 上下文
+    private MiniTbActorContext ctx;
+    
+    public DeviceActor(DeviceId deviceId, Device device) {
+        this.deviceId = deviceId;
+        this.device = device;
+    }
+    
+    @Override
+    public void init(MiniTbActorContext ctx) throws Exception {
+        this.ctx = ctx;
+        log.info("[{}] Device Actor 初始化: {}", deviceId, device.getName());
+    }
+    
+    @Override
+    public boolean process(MiniTbActorMsg msg) {
+        switch (msg.getActorMsgType()) {
+            case TRANSPORT_TO_DEVICE_MSG:
+                onTransportMsg((TransportToDeviceMsg) msg);
+                return true;
+            case DEVICE_CONNECTED_MSG:
+                onDeviceConnected();
+                return true;
+            case DEVICE_DISCONNECTED_MSG:
+                onDeviceDisconnected();
+                return true;
+            default:
+                return false;
+        }
+    }
+    
+    /**
+     * 处理传输层消息
+     */
+    private void onTransportMsg(TransportToDeviceMsg msg) {
+        log.debug("[{}] 收到遥测数据: {}", deviceId, msg.getPayload());
+        
+        // 更新最后活动时间
+        lastActivityTime = System.currentTimeMillis();
+        
+        // 创建 TbMsg
+        TbMsg tbMsg = TbMsg.newMsg(
+                TbMsgType.POST_TELEMETRY_REQUEST,
+                deviceId,
+                null,  // metaData
+                msg.getPayload()
+        );
+        
+        // 转发到规则引擎
+        ctx.tell(RULE_ENGINE_ACTOR_ID, new ToRuleEngineMsg(tbMsg));
+        
+        log.debug("[{}] 消息已转发到规则引擎", deviceId);
+    }
+    
+    /**
+     * 处理设备连接
+     */
+    private void onDeviceConnected() {
+        connected = true;
+        lastActivityTime = System.currentTimeMillis();
+        log.info("[{}] 设备已连接: {}", deviceId, device.getName());
+    }
+    
+    /**
+     * 处理设备断开
+     */
+    private void onDeviceDisconnected() {
+        connected = false;
+        sessions.clear();
+        log.info("[{}] 设备已断开: {}", deviceId, device.getName());
+    }
+    
+    @Override
+    public void destroy() throws Exception {
+        log.info("[{}] Device Actor 销毁: {}", deviceId, device.getName());
+        sessions.clear();
+    }
+    
+    @Override
+    public String getActorId() {
+        return "Device:" + deviceId.getId().toString();
+    }
+    
+    /**
+     * 会话信息
+     */
+    private static class SessionInfo {
+        private final String sessionId;
+        private final long createTime;
+        
+        public SessionInfo(String sessionId) {
+            this.sessionId = sessionId;
+            this.createTime = System.currentTimeMillis();
+        }
+    }
+}
+

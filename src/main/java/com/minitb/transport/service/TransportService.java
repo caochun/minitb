@@ -3,6 +3,10 @@ package com.minitb.transport.service;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.minitb.actor.MiniTbActorSystem;
+import com.minitb.actor.device.DeviceActor;
+import com.minitb.actor.msg.TransportToDeviceMsg;
+import com.minitb.actor.ruleengine.RuleEngineActor;
 import com.minitb.common.entity.Device;
 import com.minitb.common.kv.*;
 import com.minitb.common.msg.TbMsg;
@@ -20,9 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * 传输服务 - 核心数据流的第二层
  * 职责：
  * 1. 设备认证
- * 2. 消息转换（JSON -> TbMsg）
+ * 2. 消息转换（JSON -> Actor 消息）
  * 3. 限流检查
- * 4. 转发到规则引擎
+ * 4. 通过 Actor 系统异步转发（改进！）
+ * 
+ * 改进：集成 Actor 系统
+ * - 每个设备有独立的 DeviceActor
+ * - 消息通过 Actor 系统异步传递
+ * - 自动队列缓冲和背压保护
  */
 @Slf4j
 public class TransportService {
@@ -33,9 +42,33 @@ public class TransportService {
     // 规则引擎服务
     private final RuleEngineService ruleEngineService;
     
+    // Actor 系统（可选，如果设置则使用 Actor 模式）
+    private MiniTbActorSystem actorSystem;
+    private boolean useActorSystem = false;
+    
     public TransportService(RuleEngineService ruleEngineService) {
         this.ruleEngineService = ruleEngineService;
         initDefaultDevices();
+    }
+    
+    /**
+     * 设置 Actor 系统并启用 Actor 模式
+     * 必须在使用前调用
+     */
+    public void enableActorSystem(MiniTbActorSystem actorSystem) {
+        this.actorSystem = actorSystem;
+        this.useActorSystem = true;
+        log.info("传输服务已启用 Actor 模式");
+        
+        // 创建规则引擎 Actor
+        RuleEngineActor ruleEngineActor = new RuleEngineActor(ruleEngineService);
+        actorSystem.createActor("RuleEngineActor", ruleEngineActor);
+        log.info("规则引擎 Actor 已创建");
+        
+        // 为已注册的设备创建 DeviceActor
+        for (Device device : deviceRegistry.values()) {
+            createDeviceActor(device);
+        }
     }
 
     /**
@@ -67,11 +100,32 @@ public class TransportService {
     public void registerDevice(Device device) {
         deviceRegistry.put(device.getAccessToken(), device);
         log.info("设备注册成功: {} (token: {})", device.getName(), device.getAccessToken());
+        
+        // 如果启用了 Actor 模式，创建 DeviceActor
+        if (useActorSystem) {
+            createDeviceActor(device);
+        }
+    }
+    
+    /**
+     * 创建设备 Actor
+     */
+    private void createDeviceActor(Device device) {
+        if (actorSystem == null) {
+            log.warn("Actor 系统未初始化，无法创建 DeviceActor");
+            return;
+        }
+        
+        DeviceActor deviceActor = new DeviceActor(device.getId(), device);
+        actorSystem.createActor(deviceActor.getActorId(), deviceActor);
+        log.info("为设备 {} 创建 DeviceActor: {}", device.getName(), deviceActor.getActorId());
     }
 
     /**
      * 处理遥测数据上报
      * 这是核心入口方法！
+     * 
+     * 改进：使用 Actor 模式 或 直接调用模式（兼容）
      */
     public void processTelemetry(String accessToken, String telemetryJson) {
         log.info("接收到遥测数据: token={}, data={}", accessToken, telemetryJson);
@@ -83,13 +137,45 @@ public class TransportService {
             return;
         }
         
-        // 2. 限流检查（简化实现，实际应该有更复杂的限流逻辑）
+        // 2. 限流检查
         if (!checkRateLimit(device)) {
             log.warn("设备 {} 超过速率限制", device.getName());
             return;
         }
         
-        // 3. 解析JSON数据为强类型KvEntry
+        // 3. 使用 Actor 模式 或 直接调用模式
+        if (useActorSystem) {
+            // Actor 模式：创建 Actor 消息并异步发送
+            sendToDeviceActorAsync(device, telemetryJson);
+        } else {
+            // 直接调用模式（旧方式，兼容）
+            sendToRuleEngineSync(device, telemetryJson);
+        }
+    }
+    
+    /**
+     * 通过 Actor 系统异步发送（新方式）
+     */
+    private void sendToDeviceActorAsync(Device device, String telemetryJson) {
+        TransportToDeviceMsg actorMsg = new TransportToDeviceMsg(
+            device.getId(),
+            device.getAccessToken(),
+            telemetryJson,
+            System.currentTimeMillis()
+        );
+        
+        DeviceActor deviceActor = new DeviceActor(device.getId(), device);
+        String actorId = deviceActor.getActorId();
+        
+        log.info("通过 Actor 系统发送消息: deviceId={}, actorId={}", device.getId(), actorId);
+        actorSystem.tell(actorId, actorMsg);
+    }
+    
+    /**
+     * 直接同步调用（旧方式，兼容）
+     */
+    private void sendToRuleEngineSync(Device device, String telemetryJson) {
+        // 解析JSON数据为强类型KvEntry
         List<TsKvEntry> tsKvEntries;
         try {
             tsKvEntries = parseJsonToKvEntries(telemetryJson);
@@ -99,23 +185,23 @@ public class TransportService {
             return;
         }
         
-        // 4. 创建元数据
+        // 创建元数据
         Map<String, String> metaData = createMetaData(device);
         
-        // 5. 创建TbMsg消息（同时包含JSON和强类型数据）
+        // 创建TbMsg消息
         TbMsg tbMsg = TbMsg.newMsg(
             TbMsgType.POST_TELEMETRY_REQUEST,
             device.getId(),
             metaData,
-            telemetryJson,      // 保留原始JSON用于兼容性
-            tsKvEntries         // 强类型数据用于高效处理
+            telemetryJson,
+            tsKvEntries
         );
         tbMsg.setTenantId(device.getTenantId());
         
         log.info("创建TbMsg: {}, 包含 {} 个强类型数据点", tbMsg.getId(), tsKvEntries.size());
         
-        // 6. 发送到规则引擎 - 这是数据流的关键转折点！
-        sendToRuleEngine(tbMsg);
+        // 直接调用规则引擎
+        ruleEngineService.processMessage(tbMsg);
     }
 
     /**
@@ -138,7 +224,8 @@ public class TransportService {
         );
         tbMsg.setTenantId(device.getTenantId());
         
-        sendToRuleEngine(tbMsg);
+        // 直接调用规则引擎
+        ruleEngineService.processMessage(tbMsg);
     }
 
     /**
@@ -174,21 +261,6 @@ public class TransportService {
         return metaData;
     }
 
-    /**
-     * 发送消息到规则引擎
-     * 这是TransportService的核心输出
-     */
-    private void sendToRuleEngine(TbMsg tbMsg) {
-        log.info("发送消息到规则引擎: {}", tbMsg.getId());
-        
-        // 在实际ThingsBoard中，这里会：
-        // 1. 发送到Kafka/RabbitMQ消息队列
-        // 2. 异步处理
-        // 3. 负载均衡到不同的Rule Engine实例
-        
-        // 这里简化为直接调用
-        ruleEngineService.processMessage(tbMsg);
-    }
 
     /**
      * 解析JSON为强类型KvEntry列表

@@ -1,5 +1,6 @@
 package com.minitb;
 
+import com.minitb.actor.MiniTbActorSystem;
 import com.minitb.common.entity.*;
 import com.minitb.common.kv.DataType;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
@@ -86,17 +87,24 @@ public class MiniTBApplication {
             ruleEngineService.setRootRuleChain(rootRuleChain);
             ruleEngineService.printRuleChains();
             
-            // 6. 初始化传输服务
-            log.info("\n[6/8] 初始化传输服务...");
-            TransportService transportService = new TransportService(ruleEngineService);
+            // 6. 初始化 Actor 系统
+            log.info("\n[6/9] 初始化 Actor 系统...");
+            MiniTbActorSystem actorSystem = new MiniTbActorSystem(5);  // 5个线程
+            log.info("Actor 系统已创建，线程池大小: 5");
             
-            // 7. 启动MQTT服务器
-            log.info("\n[7/8] 启动MQTT服务器...");
+            // 7. 初始化传输服务并集成 Actor
+            log.info("\n[7/9] 初始化传输服务...");
+            TransportService transportService = new TransportService(ruleEngineService);
+            transportService.enableActorSystem(actorSystem);  // 启用 Actor 模式
+            log.info("传输服务已启用 Actor 模式");
+            
+            // 8. 启动MQTT服务器
+            log.info("\n[8/9] 启动MQTT服务器...");
             MqttTransportService mqttService = new MqttTransportService(1883, transportService);
             mqttService.start();
             
-            // 8. 启动Prometheus数据拉取器（使用 DeviceProfile 配置）
-            log.info("\n[8/8] 启动Prometheus数据拉取器（基于 DeviceProfile）...");
+            // 9. 启动Prometheus数据拉取器（使用 DeviceProfile 配置）
+            log.info("\n[9/9] 启动Prometheus数据拉取器（基于 DeviceProfile）...");
             String prometheusUrl = System.getenv("PROMETHEUS_URL");
             if (prometheusUrl == null || prometheusUrl.isEmpty()) {
                 prometheusUrl = "http://localhost:9090";
@@ -161,6 +169,7 @@ public class MiniTBApplication {
                 log.info("\n正在关闭MiniTB...");
                 promPuller.shutdown();
                 mqttService.shutdown();
+                actorSystem.shutdown();  // 关闭 Actor 系统
                 ruleEngineService.shutdown();
                 storage.printStatistics();
                 log.info("MiniTB已关闭");
