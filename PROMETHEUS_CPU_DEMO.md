@@ -234,3 +234,5 @@ MiniTB → 定时查询 → Prometheus → 返回数据
 
 这演示了如何将监控系统（Prometheus）与IoT平台（MiniTB）集成，实现统一的数据处理和存储。
 
+
+

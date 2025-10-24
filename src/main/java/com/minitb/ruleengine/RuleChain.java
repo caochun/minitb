@@ -29,38 +29,33 @@ public class RuleChain {
      * 添加规则节点
      */
     public RuleChain addNode(RuleNode node) {
+        // 建立责任链：将新节点链接到最后一个节点
+        if (!nodes.isEmpty()) {
+            RuleNode lastNode = nodes.get(nodes.size() - 1);
+            lastNode.setNext(node);
+        }
         nodes.add(node);
         log.info("规则链 [{}] 添加节点: {}", name, node.getName());
         return this;
     }
 
     /**
-     * 处理消息 - 消息依次流经所有节点
+     * 处理消息 - 从第一个节点开始，通过责任链传递
      */
     public void process(TbMsg msg) {
         log.info("规则链 [{}] 开始处理消息: {}", name, msg.getId());
         
-        TbMsg currentMsg = msg;
-        
-        for (int i = 0; i < nodes.size(); i++) {
-            if (currentMsg == null) {
-                log.info("规则链 [{}] 消息在节点 {} 被过滤", name, i);
-                break;
-            }
-            
-            RuleNode node = nodes.get(i);
-            log.debug("规则链 [{}] 节点 {} 处理消息: {}", name, i, node.getName());
-            
-            try {
-                currentMsg = node.onMsg(currentMsg);
-            } catch (Exception e) {
-                log.error("规则链 [{}] 节点 {} 处理失败", name, i, e);
-                break;
-            }
+        if (nodes.isEmpty()) {
+            log.warn("规则链 [{}] 没有节点", name);
+            return;
         }
         
-        if (currentMsg != null) {
+        try {
+            // 从第一个节点开始处理，后续节点通过责任链自动调用
+            nodes.get(0).onMsg(msg);
             log.info("规则链 [{}] 消息处理完成: {}", name, msg.getId());
+        } catch (Exception e) {
+            log.error("规则链 [{}] 处理消息异常", name, e);
         }
     }
 
@@ -76,5 +71,7 @@ public class RuleChain {
         return nodes.size();
     }
 }
+
+
 
 

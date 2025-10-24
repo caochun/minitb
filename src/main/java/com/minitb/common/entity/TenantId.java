@@ -22,6 +22,10 @@ public class TenantId {
     public static TenantId systemTenantId() {
         return new TenantId(new UUID(0, 0));
     }
+    
+    public static TenantId random() {
+        return new TenantId(UUID.randomUUID());
+    }
 
     @Override
     public String toString() {

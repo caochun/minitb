@@ -4,35 +4,28 @@ import com.minitb.common.msg.TbMsg;
 
 /**
  * 规则节点接口
- * 所有规则节点都需要实现这个接口
+ * 
+ * 所有规则节点都实现此接口
+ * 采用责任链模式处理消息
  */
 public interface RuleNode {
     
     /**
-     * 节点名称
+     * 处理消息
+     * @param msg 待处理的消息
+     */
+    void onMsg(TbMsg msg);
+    
+    /**
+     * 设置下一个节点
+     * @param next 下一个规则节点
+     */
+    void setNext(RuleNode next);
+    
+    /**
+     * 获取节点名称
+     * @return 节点名称
      */
     String getName();
-    
-    /**
-     * 处理消息
-     * @param msg 输入消息
-     * @return 处理后的消息（可能是null，表示消息被过滤）
-     */
-    TbMsg onMsg(TbMsg msg);
-    
-    /**
-     * 节点初始化
-     */
-    default void init() {
-        // 默认空实现
-    }
-    
-    /**
-     * 节点销毁
-     */
-    default void destroy() {
-        // 默认空实现
-    }
 }
-
 

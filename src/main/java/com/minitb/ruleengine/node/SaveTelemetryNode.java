@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SaveTelemetryNode implements RuleNode {
     
     private final TelemetryStorage storage;
+    private RuleNode next;
     
     public SaveTelemetryNode(TelemetryStorage storage) {
         this.storage = storage;
@@ -20,9 +21,14 @@ public class SaveTelemetryNode implements RuleNode {
     public String getName() {
         return "SaveTelemetryNode";
     }
+    
+    @Override
+    public void setNext(RuleNode next) {
+        this.next = next;
+    }
 
     @Override
-    public TbMsg onMsg(TbMsg msg) {
+    public void onMsg(TbMsg msg) {
         try {
             // 保存遥测数据
             storage.save(
@@ -34,13 +40,17 @@ public class SaveTelemetryNode implements RuleNode {
             log.info("[{}] 保存遥测数据成功: deviceId={}, ts={}", 
                     getName(), msg.getOriginator(), msg.getTimestamp());
             
-            return msg; // 继续传递消息给下一个节点
+            // 传递给下一个节点
+            if (next != null) {
+                next.onMsg(msg);
+            }
             
         } catch (Exception e) {
             log.error("[{}] 保存遥测数据失败", getName(), e);
-            return null;
         }
     }
 }
+
+
 
 

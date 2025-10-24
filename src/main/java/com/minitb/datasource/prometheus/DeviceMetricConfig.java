@@ -29,3 +29,5 @@ public class DeviceMetricConfig {
     private List<String> metrics;
 }
 
+
+

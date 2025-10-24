@@ -14,6 +14,7 @@ public class FilterNode implements RuleNode {
     
     private final String filterKey;
     private final double threshold;
+    private RuleNode next;
     
     public FilterNode(String filterKey, double threshold) {
         this.filterKey = filterKey;
@@ -24,9 +25,14 @@ public class FilterNode implements RuleNode {
     public String getName() {
         return "FilterNode[" + filterKey + " > " + threshold + "]";
     }
+    
+    @Override
+    public void setNext(RuleNode next) {
+        this.next = next;
+    }
 
     @Override
-    public TbMsg onMsg(TbMsg msg) {
+    public void onMsg(TbMsg msg) {
         try {
             JsonObject data = JsonParser.parseString(msg.getData()).getAsJsonObject();
             
@@ -35,20 +41,26 @@ public class FilterNode implements RuleNode {
                 
                 if (value > threshold) {
                     log.info("[{}] 消息通过过滤: {}={}", getName(), filterKey, value);
-                    return msg;
+                    if (next != null) {
+                        next.onMsg(msg);
+                    }
                 } else {
                     log.debug("[{}] 消息被过滤: {}={}", getName(), filterKey, value);
-                    return null; // 返回null表示消息被过滤
+                    // 消息被过滤，不传递给下一个节点
                 }
             } else {
                 log.warn("[{}] 数据中不包含字段: {}", getName(), filterKey);
-                return msg; // 字段不存在时，默认放行
+                // 字段不存在时，默认放行
+                if (next != null) {
+                    next.onMsg(msg);
+                }
             }
         } catch (Exception e) {
             log.error("[{}] 处理消息失败", getName(), e);
-            return null;
         }
     }
 }
+
+
 
 

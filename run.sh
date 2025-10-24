@@ -8,6 +8,9 @@ echo "========================================="
 
 cd "$(dirname "$0")"
 
+# 强制使用Java 17（避免Maven使用错误的Java版本）
+export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.17/libexec/openjdk.jdk/Contents/Home
+
 # 编译项目
 echo "正在编译..."
 mvn clean compile
@@ -23,5 +26,7 @@ echo ""
 
 # 运行程序
 mvn exec:java -Dexec.mainClass="com.minitb.MiniTBApplication"
+
+
 
 
