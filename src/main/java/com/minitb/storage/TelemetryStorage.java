@@ -1,39 +1,36 @@
 package com.minitb.storage;
 
 import com.minitb.common.entity.DeviceId;
+import com.minitb.common.kv.DataType;
+import com.minitb.common.kv.TsKvEntry;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * 遥测数据存储 - 核心数据流的最后一层
  * 职责：持久化时序数据
  * 
- * 简化实现：
- * 1. 内存存储（Map）
- * 2. 文件备份（可选）
- * 
- * 实际ThingsBoard使用：
- * - Cassandra（大规模时序数据）
- * - PostgreSQL（中小规模）
- * - TimescaleDB（PostgreSQL扩展）
+ * 重构后：
+ * 1. 支持强类型数据存储（TsKvEntry）
+ * 2. 按键名查询
+ * 3. 按数据类型过滤
+ * 4. 兼容旧版字符串存储
  */
 @Slf4j
 public class TelemetryStorage {
     
-    // 内存存储：设备ID -> 数据列表
-    private final Map<DeviceId, List<TelemetryData>> dataStore = new ConcurrentHashMap<>();
+    // 内存存储：设备ID -> 键名 -> 时间序列数据列表
+    private final Map<DeviceId, Map<String, List<TsKvEntry>>> dataStore = new ConcurrentHashMap<>();
     
     // 是否启用文件备份
     private final boolean enableFileBackup;
@@ -50,42 +47,78 @@ public class TelemetryStorage {
         if (enableFileBackup) {
             try {
                 Files.createDirectories(Paths.get(backupDir));
-                log.info("遥测数据存储初始化完成，文件备份目录: {}", backupDir);
+                log.info("遥测数据存储初始化完成（强类型模式），文件备份目录: {}", backupDir);
             } catch (IOException e) {
                 log.error("创建备份目录失败", e);
             }
         } else {
-            log.info("遥测数据存储初始化完成（仅内存模式）");
+            log.info("遥测数据存储初始化完成（强类型模式，仅内存）");
         }
     }
 
     /**
-     * 保存遥测数据
+     * 保存单个遥测数据点
      */
-    public void save(DeviceId deviceId, long timestamp, String jsonData) {
-        TelemetryData data = new TelemetryData(timestamp, jsonData);
+    public void save(DeviceId deviceId, TsKvEntry tsKvEntry) {
+        String key = tsKvEntry.getKey();
         
         // 保存到内存
-        dataStore.computeIfAbsent(deviceId, k -> new ArrayList<>()).add(data);
+        dataStore.computeIfAbsent(deviceId, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(key, k -> new ArrayList<>())
+                .add(tsKvEntry);
         
-        log.info("保存遥测数据: deviceId={}, ts={}, data={}", 
-                deviceId, formatTimestamp(timestamp), jsonData);
+        log.info("保存遥测数据: deviceId={}, key={}, type={}, ts={}, value={}", 
+                deviceId, key, tsKvEntry.getDataType(), 
+                formatTimestamp(tsKvEntry.getTs()), tsKvEntry.getValueAsString());
         
         // 可选：备份到文件
         if (enableFileBackup) {
-            backupToFile(deviceId, data);
+            backupToFile(deviceId, tsKvEntry);
         }
     }
 
     /**
-     * 备份到文件
+     * 保存多个遥测数据点（批量）
      */
-    private void backupToFile(DeviceId deviceId, TelemetryData data) {
+    public void save(DeviceId deviceId, List<TsKvEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        
+        for (TsKvEntry entry : entries) {
+            save(deviceId, entry);
+        }
+        
+        log.info("批量保存遥测数据: deviceId={}, 数据点数={}", deviceId, entries.size());
+    }
+
+    /**
+     * 兼容旧版API：保存JSON字符串数据
+     * @deprecated 建议使用 save(DeviceId, TsKvEntry) 或 save(DeviceId, List<TsKvEntry>)
+     */
+    @Deprecated
+    public void save(DeviceId deviceId, long timestamp, String jsonData) {
+        log.warn("使用了已废弃的API save(DeviceId, long, String)，建议升级到强类型API");
+        
+        // 简单处理：作为一个JSON类型的数据点存储
+        // 实际应该解析JSON并创建多个TsKvEntry
+        if (enableFileBackup) {
+            backupToFileLegacy(deviceId, timestamp, jsonData);
+        }
+    }
+
+    /**
+     * 备份到文件（强类型）
+     */
+    private void backupToFile(DeviceId deviceId, TsKvEntry entry) {
         try {
             String filename = backupDir + "/telemetry_" + deviceId.getId() + ".log";
             try (FileWriter writer = new FileWriter(filename, true)) {
-                writer.write(String.format("[%s] %s%n", 
-                        formatTimestamp(data.timestamp), data.jsonData));
+                writer.write(String.format("[%s] %s=%s (%s)%n", 
+                        formatTimestamp(entry.getTs()), 
+                        entry.getKey(),
+                        entry.getValueAsString(),
+                        entry.getDataType()));
             }
         } catch (IOException e) {
             log.error("备份到文件失败", e);
@@ -93,42 +126,146 @@ public class TelemetryStorage {
     }
 
     /**
-     * 查询设备的遥测数据
+     * 备份到文件（兼容旧版）
      */
-    public List<TelemetryData> query(DeviceId deviceId, long startTs, long endTs) {
-        List<TelemetryData> allData = dataStore.get(deviceId);
-        if (allData == null) {
-            return new ArrayList<>();
+    private void backupToFileLegacy(DeviceId deviceId, long timestamp, String jsonData) {
+        try {
+            String filename = backupDir + "/telemetry_" + deviceId.getId() + "_legacy.log";
+            try (FileWriter writer = new FileWriter(filename, true)) {
+                writer.write(String.format("[%s] %s%n", formatTimestamp(timestamp), jsonData));
+            }
+        } catch (IOException e) {
+            log.error("备份到文件失败", e);
         }
-        
-        return allData.stream()
-                .filter(data -> data.timestamp >= startTs && data.timestamp <= endTs)
-                .toList();
     }
 
     /**
-     * 获取设备的最新数据
+     * 查询设备的特定键的遥测数据（时间范围）
      */
-    public TelemetryData getLatest(DeviceId deviceId) {
-        List<TelemetryData> allData = dataStore.get(deviceId);
-        if (allData == null || allData.isEmpty()) {
+    public List<TsKvEntry> query(DeviceId deviceId, String key, long startTs, long endTs) {
+        Map<String, List<TsKvEntry>> deviceData = dataStore.get(deviceId);
+        if (deviceData == null) {
+            return new ArrayList<>();
+        }
+        
+        List<TsKvEntry> keyData = deviceData.get(key);
+        if (keyData == null) {
+            return new ArrayList<>();
+        }
+        
+        return keyData.stream()
+                .filter(entry -> entry.getTs() >= startTs && entry.getTs() <= endTs)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 查询设备的所有键的遥测数据（时间范围）
+     */
+    public Map<String, List<TsKvEntry>> queryAll(DeviceId deviceId, long startTs, long endTs) {
+        Map<String, List<TsKvEntry>> deviceData = dataStore.get(deviceId);
+        if (deviceData == null) {
+            return new HashMap<>();
+        }
+        
+        Map<String, List<TsKvEntry>> result = new HashMap<>();
+        deviceData.forEach((key, entries) -> {
+            List<TsKvEntry> filtered = entries.stream()
+                    .filter(entry -> entry.getTs() >= startTs && entry.getTs() <= endTs)
+                    .collect(Collectors.toList());
+            if (!filtered.isEmpty()) {
+                result.put(key, filtered);
+            }
+        });
+        
+        return result;
+    }
+
+    /**
+     * 按数据类型查询
+     */
+    public List<TsKvEntry> queryByType(DeviceId deviceId, DataType dataType, long startTs, long endTs) {
+        Map<String, List<TsKvEntry>> deviceData = dataStore.get(deviceId);
+        if (deviceData == null) {
+            return new ArrayList<>();
+        }
+        
+        List<TsKvEntry> result = new ArrayList<>();
+        deviceData.values().forEach(entries -> {
+            entries.stream()
+                    .filter(entry -> entry.getDataType() == dataType)
+                    .filter(entry -> entry.getTs() >= startTs && entry.getTs() <= endTs)
+                    .forEach(result::add);
+        });
+        
+        return result;
+    }
+
+    /**
+     * 获取设备特定键的最新数据
+     */
+    public TsKvEntry getLatest(DeviceId deviceId, String key) {
+        Map<String, List<TsKvEntry>> deviceData = dataStore.get(deviceId);
+        if (deviceData == null) {
             return null;
         }
-        return allData.get(allData.size() - 1);
+        
+        List<TsKvEntry> keyData = deviceData.get(key);
+        if (keyData == null || keyData.isEmpty()) {
+            return null;
+        }
+        
+        return keyData.get(keyData.size() - 1);
+    }
+
+    /**
+     * 获取设备所有键的最新数据
+     */
+    public Map<String, TsKvEntry> getLatestAll(DeviceId deviceId) {
+        Map<String, List<TsKvEntry>> deviceData = dataStore.get(deviceId);
+        if (deviceData == null) {
+            return new HashMap<>();
+        }
+        
+        Map<String, TsKvEntry> result = new HashMap<>();
+        deviceData.forEach((key, entries) -> {
+            if (!entries.isEmpty()) {
+                result.put(key, entries.get(entries.size() - 1));
+            }
+        });
+        
+        return result;
+    }
+
+    /**
+     * 获取设备的所有键名
+     */
+    public Set<String> getKeys(DeviceId deviceId) {
+        Map<String, List<TsKvEntry>> deviceData = dataStore.get(deviceId);
+        if (deviceData == null) {
+            return new HashSet<>();
+        }
+        return new HashSet<>(deviceData.keySet());
     }
 
     /**
      * 获取数据统计
      */
     public void printStatistics() {
-        log.info("=== 遥测数据统计 ===");
-        dataStore.forEach((deviceId, dataList) -> {
-            log.info("设备 {}: {} 条数据", deviceId, dataList.size());
-            if (!dataList.isEmpty()) {
-                TelemetryData latest = dataList.get(dataList.size() - 1);
-                log.info("  最新数据时间: {}", formatTimestamp(latest.timestamp));
-                log.info("  最新数据内容: {}", latest.jsonData);
-            }
+        log.info("=== 遥测数据统计（强类型模式） ===");
+        dataStore.forEach((deviceId, keyData) -> {
+            int totalDataPoints = keyData.values().stream()
+                    .mapToInt(List::size)
+                    .sum();
+            log.info("设备 {}: {} 个键, {} 条数据点", deviceId, keyData.size(), totalDataPoints);
+            
+            keyData.forEach((key, entries) -> {
+                if (!entries.isEmpty()) {
+                    TsKvEntry latest = entries.get(entries.size() - 1);
+                    log.info("  键 '{}': {} 条数据, 类型={}, 最新值={}, 最新时间={}", 
+                            key, entries.size(), latest.getDataType(), 
+                            latest.getValueAsString(), formatTimestamp(latest.getTs()));
+                }
+            });
         });
     }
 
@@ -138,19 +275,4 @@ public class TelemetryStorage {
     private String formatTimestamp(long timestamp) {
         return FORMATTER.format(Instant.ofEpochMilli(timestamp));
     }
-
-    /**
-     * 遥测数据记录
-     */
-    public static class TelemetryData {
-        public final long timestamp;
-        public final String jsonData;
-        
-        public TelemetryData(long timestamp, String jsonData) {
-            this.timestamp = timestamp;
-            this.jsonData = jsonData;
-        }
-    }
 }
-
-

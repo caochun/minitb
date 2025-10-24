@@ -3,6 +3,9 @@ package com.minitb.datasource.prometheus;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.minitb.common.entity.DeviceProfile;
+import com.minitb.common.entity.TelemetryDefinition;
+import com.minitb.service.DeviceProfileService;
 import com.minitb.transport.service.TransportService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,9 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,16 +34,21 @@ public class PrometheusDataPuller {
     
     private final String prometheusUrl;
     private final TransportService transportService;
+    private final DeviceProfileService profileService;
     private final ScheduledExecutorService scheduler;
     private final Map<String, DeviceMetricConfig> deviceConfigs;
+    private final Map<String, String> deviceProfileMap;  // deviceId -> profileId
     private final HttpClient httpClient;
     
     public PrometheusDataPuller(String prometheusUrl, 
-                                TransportService transportService) {
+                                TransportService transportService,
+                                DeviceProfileService profileService) {
         this.prometheusUrl = prometheusUrl;
         this.transportService = transportService;
+        this.profileService = profileService;
         this.scheduler = Executors.newScheduledThreadPool(1);
         this.deviceConfigs = new ConcurrentHashMap<>();
+        this.deviceProfileMap = new ConcurrentHashMap<>();
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -51,18 +57,56 @@ public class PrometheusDataPuller {
     }
     
     /**
-     * 注册需要拉取的设备配置
+     * 使用 DeviceProfile 注册设备（推荐方式）
      * @param deviceId 设备ID
-     * @param accessToken 设备token（用于认证）
-     * @param metrics 需要拉取的指标列表，如["temperature", "humidity"]
+     * @param accessToken 设备token
+     * @param profileId DeviceProfile ID
      */
+    public void registerDeviceWithProfile(String deviceId, String accessToken, String profileId) {
+        Optional<DeviceProfile> profileOpt = profileService.findById(profileId);
+        if (profileOpt.isEmpty()) {
+            log.error("找不到配置文件: {}", profileId);
+            return;
+        }
+        
+        DeviceProfile profile = profileOpt.get();
+        
+        // 从 DeviceProfile 提取 Prometheus 指标
+        List<String> metrics = new ArrayList<>();
+        Map<String, String> metricToPromQL = new HashMap<>();
+        
+        for (TelemetryDefinition def : profile.getTelemetryDefinitions()) {
+            if (def.isPrometheus()) {
+                metrics.add(def.getKey());
+                metricToPromQL.put(def.getKey(), def.getPrometheusConfig().getPromQL());
+            }
+        }
+        
+        if (metrics.isEmpty()) {
+            log.warn("配置文件 {} 中没有 Prometheus 遥测定义", profileId);
+            return;
+        }
+        
+        DeviceMetricConfig config = new DeviceMetricConfig(deviceId, accessToken, metrics);
+        config.setPromQLMap(metricToPromQL);  // 保存 PromQL 映射
+        deviceConfigs.put(deviceId, config);
+        deviceProfileMap.put(deviceId, profileId);
+        
+        log.info("注册Prometheus设备（使用配置文件）: deviceId={}, profile={}, 指标数={}", 
+                 deviceId, profile.getName(), metrics.size());
+        metrics.forEach(m -> log.info("  - {} -> {}", m, metricToPromQL.get(m)));
+    }
+    
+    /**
+     * 注册需要拉取的设备配置（旧版API，兼容性）
+     * @deprecated 建议使用 registerDeviceWithProfile
+     */
+    @Deprecated
     public void registerDevice(String deviceId, String accessToken, 
                                List<String> metrics) {
-        DeviceMetricConfig config = new DeviceMetricConfig(
-            deviceId, accessToken, metrics
-        );
+        DeviceMetricConfig config = new DeviceMetricConfig(deviceId, accessToken, metrics);
         deviceConfigs.put(deviceId, config);
-        log.info("注册Prometheus数据源设备: deviceId={}, token={}, 指标={}", 
+        log.info("注册Prometheus数据源设备（旧版API）: deviceId={}, token={}, 指标={}", 
                  deviceId, accessToken, metrics);
     }
     
@@ -123,26 +167,31 @@ public class PrometheusDataPuller {
             throws Exception {
         Map<String, Double> result = new HashMap<>();
         
-        for (String metricName : config.getMetrics()) {
-            // 构造PromQL查询（查询最新值）
-            // 支持两种格式:
-            // 1. 自定义device_id: device_temperature{device_id="xxx"}
-            // 2. Prometheus instance: process_cpu_seconds_total{instance="localhost:9090"}
+        for (String metricKey : config.getMetrics()) {
+            // 优先使用 DeviceProfile 中定义的 PromQL
             String promQL;
-            if (config.getDeviceId().contains(":")) {
-                // 使用instance标签（Prometheus标准格式）
-                promQL = String.format(
-                    "%s{instance=\"%s\"}", 
-                    metricName, 
-                    config.getDeviceId()
-                );
+            if (config.getPromQLMap() != null && config.getPromQLMap().containsKey(metricKey)) {
+                // 使用配置的 PromQL（支持复杂查询）
+                promQL = config.getPromQLMap().get(metricKey);
+                log.debug("使用配置的PromQL: {} -> {}", metricKey, promQL);
             } else {
-                // 使用device_id标签（自定义格式）
-                promQL = String.format(
-                    "%s{device_id=\"%s\"}", 
-                    metricName, 
-                    config.getDeviceId()
-                );
+                // 降级为简单查询（兼容旧版）
+                if (config.getDeviceId().contains(":")) {
+                    // 使用instance标签（Prometheus标准格式）
+                    promQL = String.format(
+                        "%s{instance=\"%s\"}", 
+                        metricKey, 
+                        config.getDeviceId()
+                    );
+                } else {
+                    // 使用device_id标签（自定义格式）
+                    promQL = String.format(
+                        "%s{device_id=\"%s\"}", 
+                        metricKey, 
+                        config.getDeviceId()
+                    );
+                }
+                log.debug("使用默认PromQL: {} -> {}", metricKey, promQL);
             }
             
             // 调用Prometheus HTTP API
@@ -157,11 +206,12 @@ public class PrometheusDataPuller {
             String response = httpGet(url);
             
             // 解析响应获取数值
-            Double value = parsePrometheusResponse(response, metricName);
+            Double value = parsePrometheusResponse(response, metricKey);
             if (value != null) {
-                result.put(metricName, value);
+                result.put(metricKey, value);
+                log.debug("查询结果: {}={}", metricKey, value);
             } else {
-                log.debug("指标 {} 无数据", metricName);
+                log.debug("指标 {} 无数据", metricKey);
             }
         }
         

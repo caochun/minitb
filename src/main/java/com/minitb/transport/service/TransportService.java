@@ -1,14 +1,18 @@
 package com.minitb.transport.service;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.minitb.common.entity.Device;
+import com.minitb.common.kv.*;
 import com.minitb.common.msg.TbMsg;
 import com.minitb.common.msg.TbMsgType;
 import com.minitb.ruleengine.RuleEngineService;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -45,12 +49,16 @@ public class TransportService {
         deviceRegistry.put(device1.getAccessToken(), device1);
         deviceRegistry.put(device2.getAccessToken(), device2);
         
-        // Prometheus数据源设备
-        Device promDevice = new Device("温度传感器-Prom", "PrometheusDevice", "test-token-prom");
+        // Prometheus 数据源设备1: Prometheus 自身进程
+        Device promDevice = new Device("Prometheus进程监控", "PrometheusMonitor", "test-token-prom");
         deviceRegistry.put(promDevice.getAccessToken(), promDevice);
         
-        log.info("初始化默认设备: {}, {}, {}", 
-                 device1.getName(), device2.getName(), promDevice.getName());
+        // Prometheus 数据源设备2: node_exporter 系统监控
+        Device nodeDevice = new Device("系统资源监控", "NodeExporter", "test-token-node");
+        deviceRegistry.put(nodeDevice.getAccessToken(), nodeDevice);
+        
+        log.info("初始化默认设备: {}, {}, {}, {}", 
+                 device1.getName(), device2.getName(), promDevice.getName(), nodeDevice.getName());
     }
 
     /**
@@ -81,10 +89,11 @@ public class TransportService {
             return;
         }
         
-        // 3. 解析JSON数据
-        JsonObject jsonData;
+        // 3. 解析JSON数据为强类型KvEntry
+        List<TsKvEntry> tsKvEntries;
         try {
-            jsonData = JsonParser.parseString(telemetryJson).getAsJsonObject();
+            tsKvEntries = parseJsonToKvEntries(telemetryJson);
+            log.info("解析得到 {} 个遥测数据点", tsKvEntries.size());
         } catch (Exception e) {
             log.error("JSON解析失败: {}", telemetryJson, e);
             return;
@@ -93,16 +102,17 @@ public class TransportService {
         // 4. 创建元数据
         Map<String, String> metaData = createMetaData(device);
         
-        // 5. 创建TbMsg消息
+        // 5. 创建TbMsg消息（同时包含JSON和强类型数据）
         TbMsg tbMsg = TbMsg.newMsg(
             TbMsgType.POST_TELEMETRY_REQUEST,
             device.getId(),
             metaData,
-            telemetryJson
+            telemetryJson,      // 保留原始JSON用于兼容性
+            tsKvEntries         // 强类型数据用于高效处理
         );
         tbMsg.setTenantId(device.getTenantId());
         
-        log.info("创建TbMsg: {}", tbMsg);
+        log.info("创建TbMsg: {}, 包含 {} 个强类型数据点", tbMsg.getId(), tsKvEntries.size());
         
         // 6. 发送到规则引擎 - 这是数据流的关键转折点！
         sendToRuleEngine(tbMsg);
@@ -178,6 +188,67 @@ public class TransportService {
         
         // 这里简化为直接调用
         ruleEngineService.processMessage(tbMsg);
+    }
+
+    /**
+     * 解析JSON为强类型KvEntry列表
+     * 核心功能：将 JSON 字符串转换为类型安全的 TsKvEntry 列表
+     * 
+     * 示例输入: {"temperature": 25.5, "humidity": 60, "online": true, "status": "running"}
+     * 示例输出: [
+     *   BasicTsKvEntry(ts, DoubleDataEntry("temperature", 25.5)),
+     *   BasicTsKvEntry(ts, LongDataEntry("humidity", 60)),
+     *   BasicTsKvEntry(ts, BooleanDataEntry("online", true)),
+     *   BasicTsKvEntry(ts, StringDataEntry("status", "running"))
+     * ]
+     */
+    private List<TsKvEntry> parseJsonToKvEntries(String json) {
+        List<TsKvEntry> entries = new ArrayList<>();
+        long ts = System.currentTimeMillis();
+        
+        JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
+        
+        for (String key : jsonObject.keySet()) {
+            JsonElement element = jsonObject.get(key);
+            KvEntry kvEntry = null;
+            
+            if (element.isJsonPrimitive()) {
+                if (element.getAsJsonPrimitive().isBoolean()) {
+                    // 布尔类型
+                    kvEntry = new BooleanDataEntry(key, element.getAsBoolean());
+                } else if (element.getAsJsonPrimitive().isNumber()) {
+                    // 数值类型：判断是整数还是浮点数
+                    try {
+                        double value = element.getAsDouble();
+                        if (value == Math.floor(value) && !Double.isInfinite(value)) {
+                            // 整数
+                            kvEntry = new LongDataEntry(key, element.getAsLong());
+                        } else {
+                            // 浮点数
+                            kvEntry = new DoubleDataEntry(key, value);
+                        }
+                    } catch (NumberFormatException e) {
+                        // 降级为字符串
+                        kvEntry = new StringDataEntry(key, element.getAsString());
+                    }
+                } else if (element.getAsJsonPrimitive().isString()) {
+                    // 字符串类型
+                    kvEntry = new StringDataEntry(key, element.getAsString());
+                }
+            } else if (element.isJsonObject() || element.isJsonArray()) {
+                // JSON对象或数组
+                kvEntry = new JsonDataEntry(key, element.toString());
+            }
+            
+            if (kvEntry != null) {
+                TsKvEntry tsKvEntry = new BasicTsKvEntry(ts, kvEntry);
+                entries.add(tsKvEntry);
+                log.debug("解析数据点: key={}, type={}, value={}", 
+                         key, kvEntry.getDataType(), kvEntry.getValueAsString());
+            }
+        }
+        
+        return entries;
     }
 
     /**

@@ -1,8 +1,7 @@
 package com.minitb;
 
-import com.minitb.common.entity.Asset;
-import com.minitb.common.entity.Device;
-import com.minitb.common.entity.TenantId;
+import com.minitb.common.entity.*;
+import com.minitb.common.kv.DataType;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.relation.EntityRelation;
 import com.minitb.relation.EntityRelationService;
@@ -13,6 +12,7 @@ import com.minitb.ruleengine.RuleEngineService;
 import com.minitb.ruleengine.node.FilterNode;
 import com.minitb.ruleengine.node.LogNode;
 import com.minitb.ruleengine.node.SaveTelemetryNode;
+import com.minitb.service.DeviceProfileService;
 import com.minitb.storage.TelemetryStorage;
 import com.minitb.transport.mqtt.MqttTransportService;
 import com.minitb.transport.service.TransportService;
@@ -39,22 +39,40 @@ public class MiniTBApplication {
         
         try {
             // 1. 初始化存储层
-            log.info("\n[1/7] 初始化数据存储层...");
+            log.info("\n[1/8] 初始化数据存储层...");
             TelemetryStorage storage = new TelemetryStorage(true);
             
-            // 2. 初始化实体关系服务
-            log.info("\n[2/7] 初始化实体关系服务...");
+            // 2. 初始化设备配置文件服务
+            log.info("\n[2/8] 初始化设备配置文件服务...");
+            DeviceProfileService profileService = new DeviceProfileService();
+            
+            // 创建 Prometheus 监控配置文件（CPU + 内存）
+            DeviceProfile promMonitorProfile = createPrometheusMonitorProfile();
+            profileService.saveProfile(promMonitorProfile);
+            log.info("创建 Prometheus 监控配置: {}", promMonitorProfile.getName());
+            log.info("  包含 {} 个遥测定义:", promMonitorProfile.getTelemetryDefinitions().size());
+            promMonitorProfile.getTelemetryDefinitions().forEach(def -> {
+                if (def.isPrometheus()) {
+                    log.info("    - {} ({}): {}", 
+                            def.getKey(), 
+                            def.getDisplayName(),
+                            def.getPrometheusConfig().getPromQL());
+                }
+            });
+            
+            // 3. 初始化实体关系服务
+            log.info("\n[3/8] 初始化实体关系服务...");
             EntityRelationService relationService = new EntityRelationService();
             
             // 演示实体关系的创建和查询
             demoEntityRelations(relationService);
             
-            // 3. 初始化规则引擎
-            log.info("\n[3/7] 初始化规则引擎...");
+            // 4. 初始化规则引擎
+            log.info("\n[4/8] 初始化规则引擎...");
             RuleEngineService ruleEngineService = new RuleEngineService();
             
-            // 4. 创建根规则链
-            log.info("\n[4/7] 配置规则链...");
+            // 5. 创建根规则链
+            log.info("\n[5/8] 配置规则链...");
             RuleChain rootRuleChain = new RuleChain("Root Rule Chain");
             rootRuleChain
                     .addNode(new LogNode("入口日志"))
@@ -68,17 +86,17 @@ public class MiniTBApplication {
             ruleEngineService.setRootRuleChain(rootRuleChain);
             ruleEngineService.printRuleChains();
             
-            // 5. 初始化传输服务
-            log.info("\n[5/7] 初始化传输服务...");
+            // 6. 初始化传输服务
+            log.info("\n[6/8] 初始化传输服务...");
             TransportService transportService = new TransportService(ruleEngineService);
             
-            // 6. 启动MQTT服务器
-            log.info("\n[6/7] 启动MQTT服务器...");
+            // 7. 启动MQTT服务器
+            log.info("\n[7/8] 启动MQTT服务器...");
             MqttTransportService mqttService = new MqttTransportService(1883, transportService);
             mqttService.start();
             
-            // 7. 启动Prometheus数据拉取器
-            log.info("\n[7/7] 启动Prometheus数据拉取器...");
+            // 8. 启动Prometheus数据拉取器（使用 DeviceProfile 配置）
+            log.info("\n[8/8] 启动Prometheus数据拉取器（基于 DeviceProfile）...");
             String prometheusUrl = System.getenv("PROMETHEUS_URL");
             if (prometheusUrl == null || prometheusUrl.isEmpty()) {
                 prometheusUrl = "http://localhost:9090";
@@ -86,34 +104,54 @@ public class MiniTBApplication {
             
             PrometheusDataPuller promPuller = new PrometheusDataPuller(
                 prometheusUrl, 
-                transportService
+                transportService,
+                profileService
             );
             
-            // 注册Prometheus自身作为监控设备
-            // 从Prometheus拉取它自己的CPU使用率
-            promPuller.registerDevice(
-                "localhost:9090",              // Prometheus instance
-                "test-token-prom",             // MiniTB中的设备token
-                Arrays.asList("process_cpu_seconds_total")  // CPU使用率指标
+            // 注册监控设备1: Prometheus 自身
+            promPuller.registerDeviceWithProfile(
+                "localhost:9090",
+                "test-token-prom",
+                promMonitorProfile.getId()
             );
             
-            // 启动定时拉取（每10秒拉取一次，更快看到效果）
+            // 创建并注册监控设备2: node_exporter 系统监控
+            DeviceProfile nodeExporterProfile = createNodeExporterProfile();
+            profileService.saveProfile(nodeExporterProfile);
+            
+            promPuller.registerDeviceWithProfile(
+                "localhost:9100",
+                "test-token-node",
+                nodeExporterProfile.getId()
+            );
+            
+            // 启动定时拉取
             int pullInterval = 10;
-            String intervalEnv = System.getenv("PROMETHEUS_PULL_INTERVAL");
-            if (intervalEnv != null && !intervalEnv.isEmpty()) {
-                try {
-                    pullInterval = Integer.parseInt(intervalEnv);
-                } catch (NumberFormatException e) {
-                    log.warn("无效的拉取间隔: {}, 使用默认值10秒", intervalEnv);
-                }
-            }
             promPuller.start(pullInterval);
             
             log.info("Prometheus数据拉取器已启动:");
             log.info("  - 目标地址: {}", prometheusUrl);
             log.info("  - 拉取间隔: {}秒", pullInterval);
-            log.info("  - 监控设备: Prometheus自身 (localhost:9090)");
-            log.info("  - 拉取指标: process_cpu_seconds_total (CPU使用时间)");
+            log.info("");
+            log.info("  监控设备1: Prometheus 进程监控");
+            log.info("    配置: {}", promMonitorProfile.getName());
+            promMonitorProfile.getTelemetryDefinitions().forEach(def -> {
+                if (def.isPrometheus()) {
+                    log.info("      * {} ({}) - PromQL: {}", 
+                            def.getKey(), def.getDisplayName(), 
+                            def.getPrometheusConfig().getPromQL());
+                }
+            });
+            log.info("");
+            log.info("  监控设备2: 系统资源监控 (node_exporter)");
+            log.info("    配置: {}", nodeExporterProfile.getName());
+            nodeExporterProfile.getTelemetryDefinitions().forEach(def -> {
+                if (def.isPrometheus()) {
+                    log.info("      * {} ({}) - PromQL: {}", 
+                            def.getKey(), def.getDisplayName(), 
+                            def.getPrometheusConfig().getPromQL());
+                }
+            });
             
             // 打印使用说明
             printUsageInstructions();
@@ -240,6 +278,131 @@ public class MiniTBApplication {
         log.info("建筑 {} 包含 楼层 {}? {}", building.getName(), floor1.getName(), exists);
         
         log.info("\n实体关系演示完成！\n");
+    }
+    
+    /**
+     * 创建 Prometheus 监控配置文件
+     * 监控 CPU 和内存
+     */
+    private static DeviceProfile createPrometheusMonitorProfile() {
+        DeviceProfile profile = DeviceProfile.builder()
+                .id("profile-prometheus-cpu-memory")
+                .name("Prometheus CPU和内存监控")
+                .description("监控 Prometheus 进程的 CPU 和内存使用情况")
+                .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
+                .strictMode(true)
+                .createdTime(System.currentTimeMillis())
+                .build();
+        
+        // CPU 使用时间（累计值）
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "cpu_seconds_total",
+                        "process_cpu_seconds_total"
+                ).toBuilder()
+                .displayName("CPU累计时间")
+                .dataType(DataType.DOUBLE)
+                .unit("秒")
+                .description("进程累计CPU使用时间")
+                .build()
+        );
+        
+        // 已分配内存
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "memory_alloc_bytes",
+                        "go_memstats_alloc_bytes"
+                ).toBuilder()
+                .displayName("已分配内存")
+                .dataType(DataType.LONG)
+                .unit("字节")
+                .description("Go运行时已分配的内存")
+                .build()
+        );
+        
+        // 协程数量
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "goroutines",
+                        "go_goroutines"
+                ).toBuilder()
+                .displayName("协程数量")
+                .dataType(DataType.LONG)
+                .unit("个")
+                .description("当前Goroutine数量")
+                .build()
+        );
+        
+        return profile;
+    }
+    
+    /**
+     * 创建 node_exporter 系统监控配置
+     * 监控整个系统的 CPU、内存、磁盘等
+     */
+    private static DeviceProfile createNodeExporterProfile() {
+        DeviceProfile profile = DeviceProfile.builder()
+                .id("profile-node-exporter")
+                .name("系统资源监控 (node_exporter)")
+                .description("监控系统整体的 CPU、内存、磁盘使用情况")
+                .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
+                .strictMode(true)
+                .createdTime(System.currentTimeMillis())
+                .build();
+        
+        // 系统CPU使用率（所有核心的平均值，1分钟速率）
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "system_cpu_usage",
+                        "avg(rate(node_cpu_seconds_total{mode!=\"idle\"}[1m]))"
+                ).toBuilder()
+                .displayName("系统CPU使用率")
+                .dataType(DataType.DOUBLE)
+                .unit("占比")
+                .description("所有CPU核心的平均使用率（1分钟速率）")
+                .build()
+        );
+        
+        // 系统总内存
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "memory_total_bytes",
+                        "node_memory_total_bytes"
+                ).toBuilder()
+                .displayName("系统总内存")
+                .dataType(DataType.LONG)
+                .unit("字节")
+                .description("系统总内存大小")
+                .build()
+        );
+        
+        // 系统空闲内存
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "memory_free_bytes",
+                        "node_memory_free_bytes"
+                ).toBuilder()
+                .displayName("空闲内存")
+                .dataType(DataType.LONG)
+                .unit("字节")
+                .description("系统空闲内存")
+                .build()
+        );
+        
+        // 内存使用率（百分比）
+        profile.addTelemetryDefinition(
+                TelemetryDefinition.prometheus(
+                        "memory_usage_percent",
+                        "(1 - node_memory_free_bytes / node_memory_total_bytes) * 100"
+                ).toBuilder()
+                .displayName("内存使用率")
+                .dataType(DataType.DOUBLE)
+                .unit("%")
+                .description("系统内存使用百分比")
+                .build()
+        );
+        
+        return profile;
     }
     
     private static void printUsageInstructions() {

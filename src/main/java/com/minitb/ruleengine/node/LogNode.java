@@ -28,11 +28,26 @@ public class LogNode implements RuleNode {
 
     @Override
     public void onMsg(TbMsg msg) {
-        log.info("[{}] 消息详情: type={}, originator={}, data={}", 
-                prefix,
-                msg.getType(),
-                msg.getOriginator(),
-                msg.getData());
+        // 使用强类型数据（如果有的话）
+        if (msg.hasTsKvEntries()) {
+            log.info("[{}] 消息详情（强类型）: type={}, originator={}, 数据点数={}", 
+                    prefix,
+                    msg.getType(),
+                    msg.getOriginator(),
+                    msg.getTsKvEntries().size());
+            
+            // 打印每个数据点
+            msg.getTsKvEntries().forEach(entry -> 
+                log.info("  [{}] 数据点: key={}, type={}, value={}", 
+                        prefix, entry.getKey(), entry.getDataType(), entry.getValueAsString())
+            );
+        } else {
+            log.info("[{}] 消息详情（兼容模式）: type={}, originator={}, data={}", 
+                    prefix,
+                    msg.getType(),
+                    msg.getOriginator(),
+                    msg.getData());
+        }
         
         // 传递给下一个节点
         if (next != null) {
