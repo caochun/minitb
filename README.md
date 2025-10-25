@@ -687,8 +687,11 @@ brew install mosquitto
 ### 启动平台
 
 ```bash
-cd minitb
+# 方式1: 使用脚本
 ./run.sh
+
+# 方式2: 使用 Maven
+mvn clean compile exec:java -Dexec.mainClass="com.minitb.MiniTBApplication"
 ```
 
 启动后会看到：
@@ -779,6 +782,38 @@ ls -lh minitb/data/
 # 查看特定设备的最新数据
 cat minitb/data/telemetry_*.log | tail -20
 ```
+
+## 🧪 性能测试
+
+### 运行性能测试
+
+```bash
+# 编译项目（包含测试代码）
+mvn clean compile test-compile
+
+# 运行性能测试（不同场景）
+mvn exec:java -Dexec.classpathScope=test \
+  -Dexec.mainClass="com.minitb.performance.PerformanceTestMain" \
+  -Dexec.args="single"
+
+# 可用的测试场景：
+# - single: 单设备吞吐量测试
+# - multi: 多设备并发测试（10, 50, 100设备）
+# - comparison: Actor vs 同步模式对比
+# - peak: 消息峰值测试（100,000条消息）
+# - full: 运行所有测试
+```
+
+### 性能基准（日志优化后）
+
+| 场景 | 吞吐量 | 延迟 | 内存 |
+|------|-------:|-----:|-----:|
+| **单设备 Actor** | 270K msg/s | 51ms | 14 MB |
+| **单设备 同步** | 130K msg/s | 0.02ms | 139 MB |
+| **50 设备** | 758K msg/s | 146ms | 40 MB |
+| **100 设备** | 763K msg/s | 278ms | 176 MB |
+
+**峰值性能**: 763K msg/s（100设备并发）
 
 ## 📁 项目结构
 
