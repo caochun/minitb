@@ -1,26 +1,45 @@
 package com.minitb.common.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.UUID;
 
 /**
  * 设备ID
+ * 
+ * 改进点：
+ * 1. 不可变ID（继承自UUIDBased）
+ * 2. 缓存hashCode
+ * 3. 工厂方法
+ * 4. 类型安全
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class DeviceId {
-    private UUID id;
-
+public class DeviceId extends UUIDBased {
+    
+    private static final long serialVersionUID = 1L;
+    
+    /**
+     * 构造器：使用指定UUID
+     */
+    public DeviceId(UUID id) {
+        super(id);
+    }
+    
+    /**
+     * 工厂方法：从UUID创建
+     */
     public static DeviceId fromUUID(UUID uuid) {
         return new DeviceId(uuid);
     }
-
-    @Override
-    public String toString() {
-        return id.toString();
+    
+    /**
+     * 工厂方法：从字符串创建
+     */
+    public static DeviceId fromString(String deviceId) {
+        return new DeviceId(UUID.fromString(deviceId));
+    }
+    
+    /**
+     * 工厂方法：生成随机ID
+     */
+    public static DeviceId random() {
+        return new DeviceId(UUID.randomUUID());
     }
 }
