@@ -275,4 +275,22 @@ public class TelemetryStorage {
     private String formatTimestamp(long timestamp) {
         return FORMATTER.format(Instant.ofEpochMilli(timestamp));
     }
+    
+    /**
+     * 获取总消息数
+     */
+    public int getTotalMessages() {
+        return dataStore.values().stream()
+                .mapToInt(deviceData -> deviceData.values().stream()
+                        .mapToInt(List::size).sum())
+                .sum();
+    }
+    
+    /**
+     * 清空所有数据
+     */
+    public void clear() {
+        dataStore.clear();
+        log.info("遥测数据存储已清空");
+    }
 }
