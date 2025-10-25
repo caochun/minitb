@@ -34,31 +34,31 @@ echo "   日志文件: $LOG_FILE"
 case $TEST_TYPE in
     "full")
         echo "   执行完整测试套件..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain full > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain full > "$LOG_FILE" 2>&1
         ;;
     "single")
         echo "   执行单设备吞吐量测试..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain single > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain single > "$LOG_FILE" 2>&1
         ;;
     "multi")
         echo "   执行多设备并发测试..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain multi > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain multi > "$LOG_FILE" 2>&1
         ;;
     "comparison")
         echo "   执行 Actor vs 同步对比测试..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain comparison > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain comparison > "$LOG_FILE" 2>&1
         ;;
     "peak")
         echo "   执行消息峰值测试..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain peak > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain peak > "$LOG_FILE" 2>&1
         ;;
     "fault")
         echo "   执行故障隔离测试..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain fault > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain fault > "$LOG_FILE" 2>&1
         ;;
     "backpressure")
         echo "   执行背压测试..."
-        java -cp target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain backpressure > "$LOG_FILE" 2>&1
+        java -cp target/test-classes:target/classes:target/dependency/* com.minitb.performance.PerformanceTestMain backpressure > "$LOG_FILE" 2>&1
         ;;
     *)
         echo "   未知测试类型: $TEST_TYPE"
