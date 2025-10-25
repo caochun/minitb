@@ -1,7 +1,6 @@
 package com.minitb.common.msg;
 
 import com.minitb.common.entity.DeviceId;
-import com.minitb.common.entity.TenantId;
 import com.minitb.common.kv.TsKvEntry;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,11 +26,6 @@ public class TbMsg {
      * 消息唯一ID
      */
     private UUID id;
-    
-    /**
-     * 租户ID
-     */
-    private TenantId tenantId;
     
     /**
      * 消息类型
@@ -123,7 +117,6 @@ public class TbMsg {
     public TbMsg copy() {
         return TbMsg.builder()
                 .id(UUID.randomUUID())
-                .tenantId(this.tenantId)
                 .type(this.type)
                 .originator(this.originator)
                 .metaData(new HashMap<>(this.metaData))

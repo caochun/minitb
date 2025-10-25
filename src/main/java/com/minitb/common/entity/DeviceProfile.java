@@ -34,11 +34,6 @@ public class DeviceProfile {
     private String name;
     
     /**
-     * 租户ID
-     */
-    private TenantId tenantId;
-    
-    /**
      * 描述
      */
     private String description;

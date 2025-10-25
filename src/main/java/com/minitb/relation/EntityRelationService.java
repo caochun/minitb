@@ -1,6 +1,5 @@
 package com.minitb.relation;
 
-import com.minitb.common.entity.TenantId;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -14,6 +13,8 @@ import java.util.stream.Collectors;
  * 1. 保存和删除实体关系
  * 2. 查询实体的关系
  * 3. 支持递归查询关系路径
+ * 
+ * 简化版：移除多租户支持，专注于关系管理核心功能
  */
 @Slf4j
 public class EntityRelationService {
@@ -34,7 +35,7 @@ public class EntityRelationService {
     /**
      * 保存关系
      */
-    public EntityRelation saveRelation(TenantId tenantId, EntityRelation relation) {
+    public EntityRelation saveRelation(EntityRelation relation) {
         String key = relation.getKey();
         
         // 保存关系
@@ -59,9 +60,9 @@ public class EntityRelationService {
     /**
      * 批量保存关系
      */
-    public void saveRelations(TenantId tenantId, List<EntityRelation> relationList) {
+    public void saveRelations(List<EntityRelation> relationList) {
         for (EntityRelation relation : relationList) {
-            saveRelation(tenantId, relation);
+            saveRelation(relation);
         }
         log.info("批量保存 {} 个实体关系", relationList.size());
     }
@@ -69,7 +70,7 @@ public class EntityRelationService {
     /**
      * 删除关系
      */
-    public boolean deleteRelation(TenantId tenantId, EntityRelation relation) {
+    public boolean deleteRelation(EntityRelation relation) {
         String key = relation.getKey();
         
         EntityRelation removed = relations.remove(key);
@@ -93,27 +94,27 @@ public class EntityRelationService {
     /**
      * 删除关系（通过参数）
      */
-    public boolean deleteRelation(TenantId tenantId, UUID fromId, String fromType, 
+    public boolean deleteRelation(UUID fromId, String fromType, 
                                   UUID toId, String toType, String relationType, 
                                   RelationTypeGroup typeGroup) {
         EntityRelation relation = new EntityRelation(fromId, fromType, toId, toType, relationType, typeGroup);
-        return deleteRelation(tenantId, relation);
+        return deleteRelation(relation);
     }
     
     /**
      * 删除实体的所有关系（出边和入边）
      */
-    public void deleteEntityRelations(TenantId tenantId, UUID entityId) {
+    public void deleteEntityRelations(UUID entityId) {
         // 删除所有出边
         List<EntityRelation> outbound = fromIndex.getOrDefault(entityId, new ArrayList<>());
         for (EntityRelation relation : new ArrayList<>(outbound)) {
-            deleteRelation(tenantId, relation);
+            deleteRelation(relation);
         }
         
         // 删除所有入边
         List<EntityRelation> inbound = toIndex.getOrDefault(entityId, new ArrayList<>());
         for (EntityRelation relation : new ArrayList<>(inbound)) {
-            deleteRelation(tenantId, relation);
+            deleteRelation(relation);
         }
         
         log.info("删除实体 {} 的所有关系", entityId);
@@ -122,7 +123,7 @@ public class EntityRelationService {
     /**
      * 查询从某实体出发的所有关系
      */
-    public List<EntityRelation> findByFrom(TenantId tenantId, UUID fromId, RelationTypeGroup typeGroup) {
+    public List<EntityRelation> findByFrom(UUID fromId, RelationTypeGroup typeGroup) {
         List<EntityRelation> result = fromIndex.getOrDefault(fromId, new ArrayList<>());
         
         if (typeGroup != null) {
@@ -138,7 +139,7 @@ public class EntityRelationService {
     /**
      * 查询指向某实体的所有关系
      */
-    public List<EntityRelation> findByTo(TenantId tenantId, UUID toId, RelationTypeGroup typeGroup) {
+    public List<EntityRelation> findByTo(UUID toId, RelationTypeGroup typeGroup) {
         List<EntityRelation> result = toIndex.getOrDefault(toId, new ArrayList<>());
         
         if (typeGroup != null) {
@@ -154,9 +155,9 @@ public class EntityRelationService {
     /**
      * 查询从某实体出发的指定类型关系
      */
-    public List<EntityRelation> findByFromAndType(TenantId tenantId, UUID fromId, 
+    public List<EntityRelation> findByFromAndType(UUID fromId, 
                                                    String relationType, RelationTypeGroup typeGroup) {
-        return findByFrom(tenantId, fromId, typeGroup).stream()
+        return findByFrom(fromId, typeGroup).stream()
                 .filter(r -> r.getRelationType().equals(relationType))
                 .collect(Collectors.toList());
     }
@@ -164,9 +165,9 @@ public class EntityRelationService {
     /**
      * 查询指向某实体的指定类型关系
      */
-    public List<EntityRelation> findByToAndType(TenantId tenantId, UUID toId, 
+    public List<EntityRelation> findByToAndType(UUID toId, 
                                                  String relationType, RelationTypeGroup typeGroup) {
-        return findByTo(tenantId, toId, typeGroup).stream()
+        return findByTo(toId, typeGroup).stream()
                 .filter(r -> r.getRelationType().equals(relationType))
                 .collect(Collectors.toList());
     }
@@ -174,7 +175,7 @@ public class EntityRelationService {
     /**
      * 检查关系是否存在
      */
-    public boolean checkRelation(TenantId tenantId, UUID fromId, String fromType,
+    public boolean checkRelation(UUID fromId, String fromType,
                                  UUID toId, String toType, String relationType, 
                                  RelationTypeGroup typeGroup) {
         EntityRelation relation = new EntityRelation(fromId, fromType, toId, toType, relationType, typeGroup);
@@ -184,7 +185,7 @@ public class EntityRelationService {
     /**
      * 获取特定关系
      */
-    public EntityRelation getRelation(TenantId tenantId, UUID fromId, String fromType,
+    public EntityRelation getRelation(UUID fromId, String fromType,
                                       UUID toId, String toType, String relationType,
                                       RelationTypeGroup typeGroup) {
         EntityRelation relation = new EntityRelation(fromId, fromType, toId, toType, relationType, typeGroup);
@@ -198,12 +199,12 @@ public class EntityRelationService {
      * @param maxLevel 最大层级
      * @return 所有找到的实体ID
      */
-    public Set<UUID> findRelatedEntities(TenantId tenantId, UUID fromId, 
+    public Set<UUID> findRelatedEntities(UUID fromId, 
                                          EntitySearchDirection direction, int maxLevel) {
         Set<UUID> visited = new HashSet<>();
         Set<UUID> result = new HashSet<>();
         
-        findRelatedEntitiesRecursive(tenantId, fromId, direction, maxLevel, 0, visited, result);
+        findRelatedEntitiesRecursive(fromId, direction, maxLevel, 0, visited, result);
         
         log.info("递归查询关系: fromId={}, direction={}, maxLevel={}, 结果数={}", 
                  fromId, direction, maxLevel, result.size());
@@ -214,7 +215,7 @@ public class EntityRelationService {
     /**
      * 递归查找关系（内部方法）
      */
-    private void findRelatedEntitiesRecursive(TenantId tenantId, UUID entityId, 
+    private void findRelatedEntitiesRecursive(UUID entityId, 
                                               EntitySearchDirection direction, int maxLevel, 
                                               int currentLevel, Set<UUID> visited, Set<UUID> result) {
         if (currentLevel >= maxLevel || visited.contains(entityId)) {
@@ -229,7 +230,7 @@ public class EntityRelationService {
             relations = fromIndex.getOrDefault(entityId, new ArrayList<>());
             for (EntityRelation relation : relations) {
                 result.add(relation.getToId());
-                findRelatedEntitiesRecursive(tenantId, relation.getToId(), direction, 
+                findRelatedEntitiesRecursive(relation.getToId(), direction, 
                                             maxLevel, currentLevel + 1, visited, result);
             }
         } else {
@@ -237,7 +238,7 @@ public class EntityRelationService {
             relations = toIndex.getOrDefault(entityId, new ArrayList<>());
             for (EntityRelation relation : relations) {
                 result.add(relation.getFromId());
-                findRelatedEntitiesRecursive(tenantId, relation.getFromId(), direction, 
+                findRelatedEntitiesRecursive(relation.getFromId(), direction, 
                                             maxLevel, currentLevel + 1, visited, result);
             }
         }

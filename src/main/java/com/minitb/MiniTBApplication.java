@@ -191,14 +191,12 @@ public class MiniTBApplication {
     private static void demoEntityRelations(EntityRelationService relationService) {
         log.info("\n>>> 演示实体关系功能 <<<");
         
-        TenantId tenantId = TenantId.random();
-        
         // 创建资产层次结构: 建筑 → 楼层 → 房间
-        Asset building = new Asset(tenantId, "智能大厦A座", "Building");
-        Asset floor1 = new Asset(tenantId, "1楼", "Floor");
-        Asset floor2 = new Asset(tenantId, "2楼", "Floor");
-        Asset room101 = new Asset(tenantId, "101会议室", "Room");
-        Asset room201 = new Asset(tenantId, "201办公室", "Room");
+        Asset building = new Asset("智能大厦A座", "Building");
+        Asset floor1 = new Asset("1楼", "Floor");
+        Asset floor2 = new Asset("2楼", "Floor");
+        Asset room101 = new Asset("101会议室", "Room");
+        Asset room201 = new Asset("201办公室", "Room");
         
         // 创建设备
         Device tempSensor1 = new Device("温度传感器-101", "TemperatureSensor", "token-101");
@@ -212,41 +210,41 @@ public class MiniTBApplication {
         log.info("\n>>> 建立实体关系 <<<");
         
         // 建筑包含楼层
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             building.getId().getId(), "Asset",
             floor1.getId().getId(), "Asset",
             EntityRelation.CONTAINS_TYPE
         ));
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             building.getId().getId(), "Asset",
             floor2.getId().getId(), "Asset",
             EntityRelation.CONTAINS_TYPE
         ));
         
         // 楼层包含房间
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             floor1.getId().getId(), "Asset",
             room101.getId().getId(), "Asset",
             EntityRelation.CONTAINS_TYPE
         ));
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             floor2.getId().getId(), "Asset",
             room201.getId().getId(), "Asset",
             EntityRelation.CONTAINS_TYPE
         ));
         
         // 房间包含设备
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             room101.getId().getId(), "Asset",
             tempSensor1.getId().getId(), "Device",
             EntityRelation.CONTAINS_TYPE
         ));
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             room201.getId().getId(), "Asset",
             tempSensor2.getId().getId(), "Device",
             EntityRelation.CONTAINS_TYPE
         ));
-        relationService.saveRelation(tenantId, new EntityRelation(
+        relationService.saveRelation(new EntityRelation(
             room201.getId().getId(), "Asset",
             humiditySensor.getId().getId(), "Device",
             EntityRelation.CONTAINS_TYPE
@@ -260,25 +258,24 @@ public class MiniTBApplication {
         
         // 1. 查询建筑的所有子资产（1层深度）
         List<EntityRelation> buildingChildren = relationService.findByFrom(
-            tenantId, building.getId().getId(), RelationTypeGroup.COMMON
+            building.getId().getId(), RelationTypeGroup.COMMON
         );
         log.info("建筑 {} 包含 {} 个直接子资产", building.getName(), buildingChildren.size());
         
         // 2. 递归查询建筑下的所有实体（多层深度）
         Set<UUID> allRelated = relationService.findRelatedEntities(
-            tenantId, building.getId().getId(), EntitySearchDirection.FROM, 10
+            building.getId().getId(), EntitySearchDirection.FROM, 10
         );
         log.info("建筑 {} 递归包含 {} 个实体（所有层级）", building.getName(), allRelated.size());
         
         // 3. 查询设备所属的房间（反向查询）
         List<EntityRelation> deviceParents = relationService.findByTo(
-            tenantId, tempSensor1.getId().getId(), RelationTypeGroup.COMMON
+            tempSensor1.getId().getId(), RelationTypeGroup.COMMON
         );
         log.info("设备 {} 属于 {} 个房间", tempSensor1.getName(), deviceParents.size());
         
         // 4. 检查关系是否存在
         boolean exists = relationService.checkRelation(
-            tenantId,
             building.getId().getId(), "Asset",
             floor1.getId().getId(), "Asset",
             EntityRelation.CONTAINS_TYPE,

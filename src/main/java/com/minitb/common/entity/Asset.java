@@ -23,11 +23,6 @@ public class Asset {
     private AssetId id;
     
     /**
-     * 所属租户ID
-     */
-    private TenantId tenantId;
-    
-    /**
      * 资产名称
      */
     private String name;
@@ -52,18 +47,6 @@ public class Asset {
      */
     public Asset(String name, String type) {
         this.id = AssetId.random();
-        this.tenantId = TenantId.random();
-        this.name = name;
-        this.type = type;
-        this.createdTime = System.currentTimeMillis();
-    }
-    
-    /**
-     * 构造方法 - 指定租户
-     */
-    public Asset(TenantId tenantId, String name, String type) {
-        this.id = AssetId.random();
-        this.tenantId = tenantId;
         this.name = name;
         this.type = type;
         this.createdTime = System.currentTimeMillis();

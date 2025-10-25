@@ -2,8 +2,6 @@ package com.minitb.performance;
 
 import com.minitb.actor.MiniTbActorSystem;
 import com.minitb.common.entity.Device;
-import com.minitb.common.entity.DeviceId;
-import com.minitb.common.entity.TenantId;
 import com.minitb.ruleengine.RuleEngineService;
 import com.minitb.ruleengine.RuleChain;
 import com.minitb.ruleengine.node.LogNode;
@@ -103,15 +101,12 @@ public class PerformanceTestRunner {
      * 创建测试设备
      */
     private void createTestDevices() {
-        TenantId tenantId = TenantId.random();
-        
         for (int i = 0; i < config.getNumDevices(); i++) {
             String deviceName = String.format("性能测试设备-%03d", i + 1);
             String deviceType = "PerformanceTestDevice";
             String accessToken = String.format("perf-token-%03d", i + 1);
             
             Device device = new Device(deviceName, deviceType, accessToken);
-            device.setTenantId(tenantId);
             
             testDevices.add(device);
             transportService.registerDevice(device);

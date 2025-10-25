@@ -14,21 +14,19 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Device {
     private DeviceId id;
-    private TenantId tenantId;
     private String name;
     private String type;
     private String accessToken;
     private long createdTime;
     
     /**
-     * 设备配置文件ID（新增）
+     * 设备配置文件ID
      * 定义了设备应该有哪些遥测数据
      */
     private String deviceProfileId;
 
     public Device(String name, String type, String accessToken) {
-        this.id = DeviceId.fromUUID(java.util.UUID.randomUUID());
-        this.tenantId = TenantId.systemTenantId();
+        this.id = DeviceId.random();
         this.name = name;
         this.type = type;
         this.accessToken = accessToken;

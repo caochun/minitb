@@ -188,7 +188,6 @@ public class TransportService {
             attributesJson,
             tsKvEntries
         );
-        tbMsg.setTenantId(device.getTenantId());
         
         // 直接调用规则引擎（简化实现）
         ruleEngineService.processMessage(tbMsg);
