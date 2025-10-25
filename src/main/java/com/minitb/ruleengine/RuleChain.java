@@ -43,7 +43,7 @@ public class RuleChain {
      * 处理消息 - 从第一个节点开始，通过责任链传递
      */
     public void process(TbMsg msg) {
-        log.info("规则链 [{}] 开始处理消息: {}", name, msg.getId());
+        log.debug("规则链 [{}] 开始处理消息: {}", name, msg.getId());
         
         if (nodes.isEmpty()) {
             log.warn("规则链 [{}] 没有节点", name);
@@ -53,7 +53,7 @@ public class RuleChain {
         try {
             // 从第一个节点开始处理，后续节点通过责任链自动调用
             nodes.get(0).onMsg(msg);
-            log.info("规则链 [{}] 消息处理完成: {}", name, msg.getId());
+            log.debug("规则链 [{}] 消息处理完成: {}", name, msg.getId());
         } catch (Exception e) {
             log.error("规则链 [{}] 处理消息异常", name, e);
         }

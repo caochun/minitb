@@ -54,7 +54,7 @@ public class RuleEngineService {
      * 这是从TransportService接收消息的地方
      */
     public void processMessage(TbMsg msg) {
-        log.info("规则引擎接收消息: type={}, originator={}", 
+        log.debug("规则引擎接收消息: type={}, originator={}", 
                 msg.getType(), msg.getOriginator());
         
         // 异步处理消息（模拟真实ThingsBoard的异步处理）
@@ -85,7 +85,7 @@ public class RuleEngineService {
         //    - 消息在Actor之间传递
         
         // 3. 执行规则链处理
-        log.info("使用规则链 [{}] 处理消息", targetRuleChain.getName());
+        log.debug("使用规则链 [{}] 处理消息", targetRuleChain.getName());
         targetRuleChain.process(msg);
     }
 

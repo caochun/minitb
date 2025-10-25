@@ -33,12 +33,12 @@ public class SaveTelemetryNode implements RuleNode {
             // 优先使用强类型数据
             if (msg.hasTsKvEntries()) {
                 storage.save(msg.getOriginator(), msg.getTsKvEntries());
-                log.info("[{}] 保存遥测数据成功（强类型）: deviceId={}, 数据点数={}", 
+                log.debug("[{}] 保存遥测数据成功（强类型）: deviceId={}, 数据点数={}", 
                         getName(), msg.getOriginator(), msg.getTsKvEntries().size());
             } else {
                 // 降级为兼容模式
                 storage.save(msg.getOriginator(), msg.getTimestamp(), msg.getData());
-                log.info("[{}] 保存遥测数据成功（兼容模式）: deviceId={}, ts={}", 
+                log.debug("[{}] 保存遥测数据成功（兼容模式）: deviceId={}, ts={}", 
                         getName(), msg.getOriginator(), msg.getTimestamp());
             }
             

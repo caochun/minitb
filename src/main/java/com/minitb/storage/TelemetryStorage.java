@@ -67,7 +67,7 @@ public class TelemetryStorage {
                 .computeIfAbsent(key, k -> new ArrayList<>())
                 .add(tsKvEntry);
         
-        log.info("保存遥测数据: deviceId={}, key={}, type={}, ts={}, value={}", 
+        log.trace("保存遥测数据: deviceId={}, key={}, type={}, ts={}, value={}", 
                 deviceId, key, tsKvEntry.getDataType(), 
                 formatTimestamp(tsKvEntry.getTs()), tsKvEntry.getValueAsString());
         
@@ -89,7 +89,7 @@ public class TelemetryStorage {
             save(deviceId, entry);
         }
         
-        log.info("批量保存遥测数据: deviceId={}, 数据点数={}", deviceId, entries.size());
+        log.debug("批量保存遥测数据: deviceId={}, 数据点数={}", deviceId, entries.size());
     }
 
     /**

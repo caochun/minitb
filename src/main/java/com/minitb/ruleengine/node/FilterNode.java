@@ -77,12 +77,12 @@ public class FilterNode implements RuleNode {
             }
             
             if (value > threshold) {
-                log.info("[{}] 消息通过过滤（强类型）: {}={}", getName(), filterKey, value);
+                log.debug("[{}] 消息通过过滤（强类型）: {}={}", getName(), filterKey, value);
                 if (next != null) {
                     next.onMsg(msg);
                 }
             } else {
-                log.debug("[{}] 消息被过滤（强类型）: {}={}", getName(), filterKey, value);
+                log.trace("[{}] 消息被过滤（强类型）: {}={}", getName(), filterKey, value);
             }
         } else {
             log.warn("[{}] 数据中不包含字段: {}", getName(), filterKey);
@@ -103,12 +103,12 @@ public class FilterNode implements RuleNode {
             double value = data.get(filterKey).getAsDouble();
             
             if (value > threshold) {
-                log.info("[{}] 消息通过过滤（兼容模式）: {}={}", getName(), filterKey, value);
+                log.debug("[{}] 消息通过过滤（兼容模式）: {}={}", getName(), filterKey, value);
                 if (next != null) {
                     next.onMsg(msg);
                 }
             } else {
-                log.debug("[{}] 消息被过滤（兼容模式）: {}={}", getName(), filterKey, value);
+                log.trace("[{}] 消息被过滤（兼容模式）: {}={}", getName(), filterKey, value);
             }
         } else {
             log.warn("[{}] 数据中不包含字段: {}", getName(), filterKey);

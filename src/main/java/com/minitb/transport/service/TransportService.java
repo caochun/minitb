@@ -128,7 +128,7 @@ public class TransportService {
      * 改进：使用 Actor 模式 或 直接调用模式（兼容）
      */
     public void processTelemetry(String accessToken, String telemetryJson) {
-        log.info("接收到遥测数据: token={}, data={}", accessToken, telemetryJson);
+        log.debug("接收到遥测数据: token={}, data={}", accessToken, telemetryJson);
         
         // 1. 设备认证
         Device device = authenticateDevice(accessToken);
@@ -167,7 +167,7 @@ public class TransportService {
         DeviceActor deviceActor = new DeviceActor(device.getId(), device);
         String actorId = deviceActor.getActorId();
         
-        log.info("通过 Actor 系统发送消息: deviceId={}, actorId={}", device.getId(), actorId);
+        log.debug("通过 Actor 系统发送消息: deviceId={}, actorId={}", device.getId(), actorId);
         actorSystem.tell(actorId, actorMsg);
     }
     
@@ -179,7 +179,7 @@ public class TransportService {
         List<TsKvEntry> tsKvEntries;
         try {
             tsKvEntries = parseJsonToKvEntries(telemetryJson);
-            log.info("解析得到 {} 个遥测数据点", tsKvEntries.size());
+            log.debug("解析得到 {} 个遥测数据点", tsKvEntries.size());
         } catch (Exception e) {
             log.error("JSON解析失败: {}", telemetryJson, e);
             return;
@@ -198,7 +198,7 @@ public class TransportService {
         );
         tbMsg.setTenantId(device.getTenantId());
         
-        log.info("创建TbMsg: {}, 包含 {} 个强类型数据点", tbMsg.getId(), tsKvEntries.size());
+        log.debug("创建TbMsg: {}, 包含 {} 个强类型数据点", tbMsg.getId(), tsKvEntries.size());
         
         // 直接调用规则引擎
         ruleEngineService.processMessage(tbMsg);
@@ -208,7 +208,7 @@ public class TransportService {
      * 处理属性上报
      */
     public void processAttributes(String accessToken, String attributesJson) {
-        log.info("接收到属性数据: token={}, data={}", accessToken, attributesJson);
+        log.debug("接收到属性数据: token={}, data={}", accessToken, attributesJson);
         
         Device device = authenticateDevice(accessToken);
         if (device == null) {
