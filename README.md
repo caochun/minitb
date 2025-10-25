@@ -670,11 +670,13 @@ List<EntityRelation> parents = relationService.findByTo(
 ### 环境要求
 
 ```bash
-# Java 17
-java -version
+# Java 17（必须）
+# ⚠️ 重要：项目必须使用 Java 17 编译
+# 如果系统安装了多个 Java 版本，项目已配置强制使用 Java 17
+brew install openjdk@17
 
 # Maven 3.6+
-mvn -version
+brew install maven
 
 # MQTT 客户端（可选）
 brew install mosquitto
@@ -683,6 +685,11 @@ brew install mosquitto
 # Prometheus: http://localhost:9090
 # node_exporter: http://localhost:9100
 ```
+
+**Java 版本说明**：
+- 项目已配置 `.mvn/jvm.config` 和 `run.sh`，强制使用 Java 17
+- Maven 编译器插件：3.11.0（兼容 Java 17）
+- Lombok 版本：1.18.36（兼容 Java 17）
 
 ### 启动平台
 
