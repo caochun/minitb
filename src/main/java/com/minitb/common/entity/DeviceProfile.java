@@ -23,9 +23,9 @@ import java.util.*;
 public class DeviceProfile {
     
     /**
-     * 配置文件唯一标识
+     * 配置文件唯一标识（强类型）
      */
-    private String id;
+    private DeviceProfileId id;
     
     /**
      * 配置文件名称

@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.minitb.common.entity.DeviceProfile;
+import com.minitb.common.entity.DeviceProfileId;
 import com.minitb.common.entity.TelemetryDefinition;
 import com.minitb.service.DeviceProfileService;
 import com.minitb.transport.service.TransportService;
@@ -37,7 +38,7 @@ public class PrometheusDataPuller {
     private final DeviceProfileService profileService;
     private final ScheduledExecutorService scheduler;
     private final Map<String, DeviceMetricConfig> deviceConfigs;
-    private final Map<String, String> deviceProfileMap;  // deviceId -> profileId
+    private final Map<String, DeviceProfileId> deviceProfileMap;  // deviceId -> profileId
     private final HttpClient httpClient;
     
     public PrometheusDataPuller(String prometheusUrl, 
@@ -62,7 +63,7 @@ public class PrometheusDataPuller {
      * @param accessToken 设备token
      * @param profileId DeviceProfile ID
      */
-    public void registerDeviceWithProfile(String deviceId, String accessToken, String profileId) {
+    public void registerDeviceWithProfile(String deviceId, String accessToken, DeviceProfileId profileId) {
         Optional<DeviceProfile> profileOpt = profileService.findById(profileId);
         if (profileOpt.isEmpty()) {
             log.error("找不到配置文件: {}", profileId);

@@ -20,10 +20,10 @@ public class Device {
     private long createdTime;
     
     /**
-     * 设备配置文件ID
+     * 设备配置文件ID（强类型）
      * 定义了设备应该有哪些遥测数据
      */
-    private String deviceProfileId;
+    private DeviceProfileId deviceProfileId;
 
     public Device(String name, String type, String accessToken) {
         this.id = DeviceId.random();
@@ -33,7 +33,7 @@ public class Device {
         this.createdTime = System.currentTimeMillis();
     }
     
-    public Device(String name, String type, String accessToken, String deviceProfileId) {
+    public Device(String name, String type, String accessToken, DeviceProfileId deviceProfileId) {
         this(name, type, accessToken);
         this.deviceProfileId = deviceProfileId;
     }

@@ -292,7 +292,7 @@ public class MiniTBApplication {
      */
     private static DeviceProfile createPrometheusMonitorProfile() {
         DeviceProfile profile = DeviceProfile.builder()
-                .id("profile-prometheus-cpu-memory")
+                .id(DeviceProfileId.fromString("profile-prometheus-cpu-memory"))
                 .name("Prometheus CPU和内存监控")
                 .description("监控 Prometheus 进程的 CPU 和内存使用情况")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
@@ -348,7 +348,7 @@ public class MiniTBApplication {
      */
     private static DeviceProfile createNodeExporterProfile() {
         DeviceProfile profile = DeviceProfile.builder()
-                .id("profile-node-exporter")
+                .id(DeviceProfileId.fromString("profile-node-exporter"))
                 .name("系统资源监控 (node_exporter)")
                 .description("监控系统整体的 CPU、内存、磁盘使用情况")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)

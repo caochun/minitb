@@ -1,6 +1,7 @@
 package com.minitb.service;
 
 import com.minitb.common.entity.DeviceProfile;
+import com.minitb.common.entity.DeviceProfileId;
 import com.minitb.common.entity.TelemetryDefinition;
 import com.minitb.common.kv.DataType;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class DeviceProfileService {
     
-    // 内存存储：profileId -> DeviceProfile
-    private final Map<String, DeviceProfile> profiles = new ConcurrentHashMap<>();
+    // 内存存储：profileId -> DeviceProfile（使用强类型Key）
+    private final Map<DeviceProfileId, DeviceProfile> profiles = new ConcurrentHashMap<>();
     
     public DeviceProfileService() {
         log.info("设备配置文件服务初始化完成");
@@ -30,7 +31,7 @@ public class DeviceProfileService {
     private void initDefaultProfiles() {
         // 1. 通用 MQTT 传感器配置
         DeviceProfile mqttSensorProfile = DeviceProfile.builder()
-                .id("profile-mqtt-sensor")
+                .id(DeviceProfileId.fromString("profile-mqtt-sensor"))
                 .name("MQTT传感器标准配置")
                 .description("适用于温湿度、压力等常见传感器")
                 .dataSourceType(DeviceProfile.DataSourceType.MQTT)
@@ -59,7 +60,7 @@ public class DeviceProfileService {
         
         // 2. Prometheus 系统监控配置
         DeviceProfile prometheusSystemProfile = DeviceProfile.builder()
-                .id("profile-prometheus-system")
+                .id(DeviceProfileId.fromString("profile-prometheus-system"))
                 .name("Prometheus系统监控")
                 .description("监控 Prometheus 自身的系统指标")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
@@ -120,7 +121,7 @@ public class DeviceProfileService {
         
         // 3. Prometheus Web 服务器监控配置
         DeviceProfile prometheusWebProfile = DeviceProfile.builder()
-                .id("profile-prometheus-web")
+                .id(DeviceProfileId.fromString("profile-prometheus-web"))
                 .name("Prometheus Web服务监控")
                 .description("监控 Web 服务的 HTTP 请求指标")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
@@ -169,14 +170,14 @@ public class DeviceProfileService {
     /**
      * 根据ID查询配置文件
      */
-    public Optional<DeviceProfile> findById(String profileId) {
+    public Optional<DeviceProfile> findById(DeviceProfileId profileId) {
         return Optional.ofNullable(profiles.get(profileId));
     }
     
     /**
      * 获取所有配置文件
      */
-    public Map<String, DeviceProfile> getAllProfiles() {
+    public Map<DeviceProfileId, DeviceProfile> getAllProfiles() {
         return new ConcurrentHashMap<>(profiles);
     }
     
