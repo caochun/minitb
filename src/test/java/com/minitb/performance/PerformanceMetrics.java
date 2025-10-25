@@ -51,15 +51,15 @@ public class PerformanceMetrics {
     // ==========================================
     
     /**
-     * 所有消息的延迟（纳秒）
-     * 格式: deviceId -> List<延迟>
+     * 所有消息的延迟（纳秒）- 使用 CopyOnWriteArrayList 避免并发修改异常
+     * 适合读多写少场景，迭代时不会抛出 ConcurrentModificationException
      */
-    private final ConcurrentHashMap<String, List<Long>> deviceLatencies = new ConcurrentHashMap<>();
+    private final java.util.concurrent.CopyOnWriteArrayList<Long> allLatencies = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     /**
-     * 全局延迟列表（用于计算百分位数）
+     * 延迟总和（纳秒）- 用于快速计算平均值
      */
-    private final List<Long> allLatencies = Collections.synchronizedList(new ArrayList<>());
+    private final AtomicLong totalLatencyNanos = new AtomicLong(0);
     
     // ==========================================
     // Actor 系统统计
@@ -131,11 +131,10 @@ public class PerformanceMetrics {
     public void recordMessageProcessed(String deviceId, long latencyNanos) {
         totalProcessed.incrementAndGet();
         
-        // 记录设备延迟
-        deviceLatencies.computeIfAbsent(deviceId, k -> Collections.synchronizedList(new ArrayList<>()))
-                       .add(latencyNanos);
+        // 累加延迟总和（用于快速计算平均值）
+        totalLatencyNanos.addAndGet(latencyNanos);
         
-        // 记录全局延迟
+        // 记录全局延迟（用于百分位数计算）
         allLatencies.add(latencyNanos);
     }
     
@@ -224,44 +223,24 @@ public class PerformanceMetrics {
     
     /**
      * 计算平均延迟（毫秒）
-     * 注意：这是单个消息的端到端延迟，包含排队时间
+     * 使用 AtomicLong 累加器，避免流操作的并发问题
      */
     public double getAverageLatencyMs() {
-        if (allLatencies.isEmpty()) return 0;
+        long count = totalProcessed.get();
+        if (count <= 0) return 0;
         
-        long totalLatency = allLatencies.stream().mapToLong(Long::longValue).sum();
-        return (totalLatency / 1_000_000.0) / allLatencies.size();
-    }
-    
-    /**
-     * 计算批量平均完成时间（毫秒）
-     * 这是更公平的指标：总测试时间 / 处理的消息数
-     * 
-     * 公式：批量平均完成时间 = 1000 / 吞吐量
-     * 
-     * 这个指标考虑了：
-     * - 所有排队时间（Netty 线程池 + Actor 邮箱）
-     * - 系统的整体处理能力
-     * - 批量负载下的真实表现
-     * 
-     * 与单消息延迟的区别：
-     * - 单消息延迟：测量单个消息从发送到完成的时间（Actor模式包含邮箱排队）
-     * - 批量完成时间：测量系统处理一批消息的平均效率（更公平）
-     */
-    public double getBatchAverageCompletionTimeMs() {
-        long processed = totalProcessed.get();
-        if (processed <= 0) return 0;
-        
-        long durationMs = getTotalDurationMs();
-        return (double) durationMs / processed;
+        long totalLatency = totalLatencyNanos.get();
+        return (totalLatency / 1_000_000.0) / count;
     }
     
     /**
      * 计算延迟百分位数
+     * CopyOnWriteArrayList 的迭代器不会抛出 ConcurrentModificationException
      */
     public double getLatencyPercentile(double percentile) {
         if (allLatencies.isEmpty()) return 0;
         
+        // CopyOnWriteArrayList 可以安全地复制和排序
         List<Long> sortedLatencies = new ArrayList<>(allLatencies);
         Collections.sort(sortedLatencies);
         
@@ -294,6 +273,7 @@ public class PerformanceMetrics {
     
     /**
      * 获取最大延迟
+     * CopyOnWriteArrayList 的 max 操作是线程安全的
      */
     public double getMaxLatencyMs() {
         if (allLatencies.isEmpty()) return 0;
@@ -388,13 +368,13 @@ public class PerformanceMetrics {
     }
     
     /**
-     * 生成简化报告（包含公平的批量完成时间指标）
+     * 生成简化报告
      */
     public String generateSummaryReport() {
         return String.format(
-            "吞吐量: %.2f msg/s | 单消息延迟: %.2f ms | 批量完成时间: %.4f ms ⭐ | P95: %.2f ms | 成功率: %.2f%% | 内存: %d MB",
-            getThroughput(), getAverageLatencyMs(), getBatchAverageCompletionTimeMs(),
-            getP95LatencyMs(), getSuccessRate(), getMaxMemoryUsage()
+            "吞吐量: %.2f msg/s | 延迟: %.2f ms (P95: %.2f ms) | 成功率: %.2f%% | 内存: %d MB",
+            getThroughput(), getAverageLatencyMs(), getP95LatencyMs(), 
+            getSuccessRate(), getMaxMemoryUsage()
         );
     }
     
@@ -407,7 +387,7 @@ public class PerformanceMetrics {
         totalSent.set(0);
         totalProcessed.set(0);
         totalFailed.set(0);
-        deviceLatencies.clear();
+        totalLatencyNanos.set(0);
         allLatencies.clear();
         actorQueueSizes.clear();
         memoryUsage.clear();
