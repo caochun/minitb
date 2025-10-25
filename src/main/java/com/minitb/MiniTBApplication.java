@@ -95,8 +95,8 @@ public class MiniTBApplication {
             // 7. 初始化传输服务并集成 Actor
             log.info("\n[7/9] 初始化传输服务...");
             TransportService transportService = new TransportService(ruleEngineService);
-            transportService.enableActorSystem(actorSystem);  // 启用 Actor 模式
-            log.info("传输服务已启用 Actor 模式");
+            transportService.setActorSystem(actorSystem);  // 设置 Actor 系统
+            log.info("传输服务已设置 Actor 系统");
             
             // 8. 启动MQTT服务器
             log.info("\n[8/9] 启动MQTT服务器...");

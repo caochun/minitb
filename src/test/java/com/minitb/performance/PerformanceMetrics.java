@@ -224,12 +224,36 @@ public class PerformanceMetrics {
     
     /**
      * 计算平均延迟（毫秒）
+     * 注意：这是单个消息的端到端延迟，包含排队时间
      */
     public double getAverageLatencyMs() {
         if (allLatencies.isEmpty()) return 0;
         
         long totalLatency = allLatencies.stream().mapToLong(Long::longValue).sum();
         return (totalLatency / 1_000_000.0) / allLatencies.size();
+    }
+    
+    /**
+     * 计算批量平均完成时间（毫秒）
+     * 这是更公平的指标：总测试时间 / 处理的消息数
+     * 
+     * 公式：批量平均完成时间 = 1000 / 吞吐量
+     * 
+     * 这个指标考虑了：
+     * - 所有排队时间（Netty 线程池 + Actor 邮箱）
+     * - 系统的整体处理能力
+     * - 批量负载下的真实表现
+     * 
+     * 与单消息延迟的区别：
+     * - 单消息延迟：测量单个消息从发送到完成的时间（Actor模式包含邮箱排队）
+     * - 批量完成时间：测量系统处理一批消息的平均效率（更公平）
+     */
+    public double getBatchAverageCompletionTimeMs() {
+        long processed = totalProcessed.get();
+        if (processed <= 0) return 0;
+        
+        long durationMs = getTotalDurationMs();
+        return (double) durationMs / processed;
     }
     
     /**
@@ -364,13 +388,13 @@ public class PerformanceMetrics {
     }
     
     /**
-     * 生成简化报告
+     * 生成简化报告（包含公平的批量完成时间指标）
      */
     public String generateSummaryReport() {
         return String.format(
-            "吞吐量: %.2f msg/s | 延迟: %.2f ms (P95: %.2f ms) | 成功率: %.2f%% | 内存: %d MB",
-            getThroughput(), getAverageLatencyMs(), getP95LatencyMs(), 
-            getSuccessRate(), getMaxMemoryUsage()
+            "吞吐量: %.2f msg/s | 单消息延迟: %.2f ms | 批量完成时间: %.4f ms ⭐ | P95: %.2f ms | 成功率: %.2f%% | 内存: %d MB",
+            getThroughput(), getAverageLatencyMs(), getBatchAverageCompletionTimeMs(),
+            getP95LatencyMs(), getSuccessRate(), getMaxMemoryUsage()
         );
     }
     

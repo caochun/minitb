@@ -68,14 +68,10 @@ public class PerformanceTestRunner {
         // 4. 初始化传输服务
         transportService = new TransportService(ruleEngineService);
         
-        // 5. 初始化 Actor 系统（如果启用）
-        if (config.isUseActorSystem()) {
-            actorSystem = new MiniTbActorSystem(config.getActorThreadPoolSize());
-            transportService.enableActorSystem(actorSystem);
-            log.info("Actor 系统已启用，线程池大小: {}", config.getActorThreadPoolSize());
-        } else {
-            log.info("使用同步模式");
-        }
+        // 5. 初始化 Actor 系统
+        actorSystem = new MiniTbActorSystem(config.getActorThreadPoolSize());
+        transportService.setActorSystem(actorSystem);
+        log.info("Actor 系统已启用，线程池大小: {}", config.getActorThreadPoolSize());
         
         // 6. 创建测试设备
         createTestDevices();
@@ -208,9 +204,16 @@ public class PerformanceTestRunner {
                     // 等待开始信号
                     startLatch.await();
                     
+                    // ⭐ 记录该设备第一条消息的发送时间（基准时间）
+                    // 后续消息的延迟会累积排队时间
+                    long firstMessageTime = System.nanoTime();
+                    
                     // 发送消息
                     for (int i = 0; i < config.getMsgsPerDevice(); i++) {
-                        sendTestMessage(device);
+                        // ⭐ 使用固定的基准时间作为所有消息的"期望发送时间"
+                        // 同步模式：后面的消息会因为等待前面的消息而延迟
+                        // Actor 模式：消息立即放入邮箱，延迟体现在邮箱排队
+                        sendTestMessage(device, firstMessageTime);
                         metrics.recordMessageSent();
                         
                         if (config.getSendIntervalMs() > 0) {
@@ -234,12 +237,21 @@ public class PerformanceTestRunner {
     }
     
     /**
-     * 发送测试消息
+     * 发送测试消息（旧方法，用于预热）
      */
     private void sendTestMessage(Device device) {
+        long sendTimeNanos = System.nanoTime();
+        sendTestMessage(device, sendTimeNanos);
+    }
+    
+    /**
+     * 发送测试消息（带时间戳）
+     * 
+     * @param sendTimeNanos 消息发送时间戳（纳秒）
+     *                      在循环外记录，确保包含排队等待时间
+     */
+    private void sendTestMessage(Device device, long sendTimeNanos) {
         try {
-            // 记录发送时间（纳秒），用于计算延迟
-            long sendTimeNanos = System.nanoTime();
             String message = generateTestMessage(device, sendTimeNanos);
             transportService.processTelemetry(device.getAccessToken(), message);
         } catch (Exception e) {
@@ -293,8 +305,8 @@ public class PerformanceTestRunner {
             metrics.recordMemoryUsage();
         }, 0, 1, TimeUnit.SECONDS);
         
-        // 监控 Actor 队列（如果启用）
-        if (config.isUseActorSystem() && actorSystem != null) {
+        // 监控 Actor 队列
+        if (actorSystem != null) {
             monitorExecutor.scheduleAtFixedRate(() -> {
                 // 这里可以添加 Actor 队列监控逻辑
                 // 由于 MiniTbActorSystem 没有暴露队列信息，这里简化处理

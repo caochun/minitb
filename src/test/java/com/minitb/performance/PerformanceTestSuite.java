@@ -28,8 +28,8 @@ public class PerformanceTestSuite {
         // 场景2: 多设备并发测试
         runMultiDeviceConcurrencyTest();
         
-        // 场景3: Actor vs 同步对比测试
-        runActorVsSyncComparisonTest();
+        // 场景3: 大规模并发测试
+        runLargeConcurrencyTest();
         
         // 场景4: 消息峰值测试
         runMessagePeakTest();
@@ -52,32 +52,15 @@ public class PerformanceTestSuite {
         log.info("   场景1: 单设备吞吐量测试");
         log.info("========================================");
         
-        // Actor 模式测试
-        PerformanceTestConfig actorConfig = PerformanceTestConfig.singleDeviceThroughput();
-        actorConfig.setUseActorSystem(true);
-        actorConfig.setTestName("单设备吞吐量测试-Actor模式");
+        PerformanceTestConfig config = PerformanceTestConfig.singleDeviceThroughput();
         
-        PerformanceTestRunner actorRunner = new PerformanceTestRunner(actorConfig);
+        PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
-            actorRunner.initialize();
-            PerformanceMetrics actorMetrics = actorRunner.runTest();
-            results.add(new TestResult("单设备吞吐量-Actor", actorMetrics));
+            runner.initialize();
+            PerformanceMetrics metrics = runner.runTest();
+            results.add(new TestResult("单设备吞吐量", metrics));
         } finally {
-            actorRunner.cleanup();
-        }
-        
-        // 同步模式测试
-        PerformanceTestConfig syncConfig = PerformanceTestConfig.singleDeviceThroughput();
-        syncConfig.setUseActorSystem(false);
-        syncConfig.setTestName("单设备吞吐量测试-同步模式");
-        
-        PerformanceTestRunner syncRunner = new PerformanceTestRunner(syncConfig);
-        try {
-            syncRunner.initialize();
-            PerformanceMetrics syncMetrics = syncRunner.runTest();
-            results.add(new TestResult("单设备吞吐量-同步", syncMetrics));
-        } finally {
-            syncRunner.cleanup();
+            runner.cleanup();
         }
     }
     
@@ -95,7 +78,6 @@ public class PerformanceTestSuite {
             log.info("测试 {} 个设备并发", deviceCount);
             
             PerformanceTestConfig config = PerformanceTestConfig.multiDeviceConcurrency(deviceCount);
-            config.setUseActorSystem(true);
             
             PerformanceTestRunner runner = new PerformanceTestRunner(config);
             try {
@@ -109,43 +91,22 @@ public class PerformanceTestSuite {
     }
     
     /**
-     * 场景3: Actor vs 同步对比测试
+     * 场景3: 大规模并发测试
      */
-    private void runActorVsSyncComparisonTest() throws Exception {
+    private void runLargeConcurrencyTest() throws Exception {
         log.info("\n========================================");
-        log.info("   场景3: Actor vs 同步对比测试");
+        log.info("   场景3: 大规模并发测试");
         log.info("========================================");
         
-        PerformanceTestConfig baseConfig = PerformanceTestConfig.actorVsSyncComparison();
+        PerformanceTestConfig config = PerformanceTestConfig.largeConcurrencyTest();
         
-        // Actor 模式
-        PerformanceTestConfig actorConfig = new PerformanceTestConfig();
-        copyConfig(baseConfig, actorConfig);
-        actorConfig.setUseActorSystem(true);
-        actorConfig.setTestName("Actor vs 同步对比-Actor模式");
-        
-        PerformanceTestRunner actorRunner = new PerformanceTestRunner(actorConfig);
+        PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
-            actorRunner.initialize();
-            PerformanceMetrics actorMetrics = actorRunner.runTest();
-            results.add(new TestResult("Actor vs 同步-Actor", actorMetrics));
+            runner.initialize();
+            PerformanceMetrics metrics = runner.runTest();
+            results.add(new TestResult("大规模并发", metrics));
         } finally {
-            actorRunner.cleanup();
-        }
-        
-        // 同步模式
-        PerformanceTestConfig syncConfig = new PerformanceTestConfig();
-        copyConfig(baseConfig, syncConfig);
-        syncConfig.setUseActorSystem(false);
-        syncConfig.setTestName("Actor vs 同步对比-同步模式");
-        
-        PerformanceTestRunner syncRunner = new PerformanceTestRunner(syncConfig);
-        try {
-            syncRunner.initialize();
-            PerformanceMetrics syncMetrics = syncRunner.runTest();
-            results.add(new TestResult("Actor vs 同步-同步", syncMetrics));
-        } finally {
-            syncRunner.cleanup();
+            runner.cleanup();
         }
     }
     
@@ -158,7 +119,6 @@ public class PerformanceTestSuite {
         log.info("========================================");
         
         PerformanceTestConfig config = PerformanceTestConfig.messagePeakTest();
-        config.setUseActorSystem(true);
         
         PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
@@ -179,7 +139,6 @@ public class PerformanceTestSuite {
         log.info("========================================");
         
         PerformanceTestConfig config = PerformanceTestConfig.faultIsolationTest();
-        config.setUseActorSystem(true);
         
         PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
@@ -200,7 +159,6 @@ public class PerformanceTestSuite {
         log.info("========================================");
         
         PerformanceTestConfig config = PerformanceTestConfig.backpressureTest();
-        config.setUseActorSystem(true);
         
         PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
@@ -260,40 +218,41 @@ public class PerformanceTestSuite {
         log.info("           详细性能分析");
         log.info("========================================");
         
-        // 找出 Actor 和同步模式的对比结果
-        TestResult actorResult = null;
-        TestResult syncResult = null;
-        
-        for (TestResult result : results) {
-            if (result.getTestName().contains("Actor vs 同步-Actor")) {
-                actorResult = result;
-            } else if (result.getTestName().contains("Actor vs 同步-同步")) {
-                syncResult = result;
-            }
-        }
-        
-        if (actorResult != null && syncResult != null) {
-            PerformanceMetrics actorMetrics = actorResult.getMetrics();
-            PerformanceMetrics syncMetrics = syncResult.getMetrics();
-            
-            double throughputImprovement = actorMetrics.getThroughput() / syncMetrics.getThroughput();
-            double latencyImprovement = syncMetrics.getAverageLatencyMs() / actorMetrics.getAverageLatencyMs();
-            
-            log.info("Actor vs 同步模式对比分析:");
-            log.info("  吞吐量提升: {:.2f}x ({} msg/s vs {} msg/s)", 
-                    throughputImprovement, actorMetrics.getThroughput(), syncMetrics.getThroughput());
-            log.info("  延迟降低: {:.2f}x ({} ms vs {} ms)", 
-                    latencyImprovement, actorMetrics.getAverageLatencyMs(), syncMetrics.getAverageLatencyMs());
-            log.info("  成功率: Actor={:.2f}%, 同步={:.2f}%", 
-                    actorMetrics.getSuccessRate(), syncMetrics.getSuccessRate());
-        }
-        
         // 分析多设备并发性能
-        log.info("\n多设备并发性能分析:");
+        log.info("多设备并发性能分析:");
         for (TestResult result : results) {
             if (result.getTestName().contains("多设备并发")) {
-                log.info("  {}: {:.2f} msg/s", result.getTestName(), result.getMetrics().getThroughput());
+                log.info("  {}: {:.2f} msg/s, 延迟: {:.2f} ms", 
+                        result.getTestName(), 
+                        result.getMetrics().getThroughput(),
+                        result.getMetrics().getAverageLatencyMs());
             }
+        }
+        
+        // 分析峰值性能
+        log.info("\n峰值性能分析:");
+        TestResult maxThroughput = results.stream()
+                .max((r1, r2) -> Double.compare(
+                        r1.getMetrics().getThroughput(), 
+                        r2.getMetrics().getThroughput()))
+                .orElse(null);
+        
+        if (maxThroughput != null) {
+            log.info("  最高吞吐量: {} - {:.2f} msg/s", 
+                    maxThroughput.getTestName(), 
+                    maxThroughput.getMetrics().getThroughput());
+        }
+        
+        TestResult minLatency = results.stream()
+                .min((r1, r2) -> Double.compare(
+                        r1.getMetrics().getAverageLatencyMs(), 
+                        r2.getMetrics().getAverageLatencyMs()))
+                .orElse(null);
+        
+        if (minLatency != null) {
+            log.info("  最低延迟: {} - {:.2f} ms", 
+                    minLatency.getTestName(), 
+                    minLatency.getMetrics().getAverageLatencyMs());
         }
     }
     
@@ -305,19 +264,22 @@ public class PerformanceTestSuite {
         log.info("           测试结论");
         log.info("========================================");
         
-        // 计算平均性能提升
+        // 计算平均性能
         double avgThroughput = results.stream()
-                .filter(r -> r.getTestName().contains("Actor"))
                 .mapToDouble(r -> r.getMetrics().getThroughput())
                 .average().orElse(0);
         
         double avgLatency = results.stream()
-                .filter(r -> r.getTestName().contains("Actor"))
                 .mapToDouble(r -> r.getMetrics().getAverageLatencyMs())
                 .average().orElse(0);
         
-        log.info("✅ Actor 模式平均吞吐量: {:.2f} msg/s", avgThroughput);
-        log.info("✅ Actor 模式平均延迟: {:.2f} ms", avgLatency);
+        double avgSuccessRate = results.stream()
+                .mapToDouble(r -> r.getMetrics().getSuccessRate())
+                .average().orElse(0);
+        
+        log.info("✅ Actor 系统平均吞吐量: {:.2f} msg/s", avgThroughput);
+        log.info("✅ Actor 系统平均延迟: {:.2f} ms", avgLatency);
+        log.info("✅ 平均成功率: {:.2f}%", avgSuccessRate);
         log.info("✅ 系统稳定性: 所有测试场景均通过");
         log.info("✅ 故障隔离: 有效");
         log.info("✅ 背压保护: 有效");

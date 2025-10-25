@@ -19,11 +19,6 @@ public class PerformanceTestConfig {
     private String testName;
     
     /**
-     * 是否使用 Actor 系统
-     */
-    private boolean useActorSystem = true;
-    
-    /**
      * Actor 线程池大小
      */
     private int actorThreadPoolSize = 5;
@@ -95,86 +90,92 @@ public class PerformanceTestConfig {
     // ==========================================
     
     /**
-     * 场景1: 单设备吞吐量测试
+     * 场景1: 单设备吞吐量测试（十万级消息）
      */
     public static PerformanceTestConfig singleDeviceThroughput() {
         PerformanceTestConfig config = new PerformanceTestConfig();
         config.setTestName("单设备吞吐量测试");
         config.setNumDevices(1);
-        config.setMsgsPerDevice(10000);
+        config.setMsgsPerDevice(100000);  // 10万条消息
         config.setSenderThreads(1);
         config.setMessageSize(100);
         config.setSendIntervalMs(0); // 最快速度
+        config.setWarmupMessages(5000);  // 预热消息数
         return config;
     }
     
     /**
-     * 场景2: 多设备并发测试
+     * 场景2: 多设备并发测试（每设备 1 万条消息）
      */
     public static PerformanceTestConfig multiDeviceConcurrency(int deviceCount) {
         PerformanceTestConfig config = new PerformanceTestConfig();
         config.setTestName("多设备并发测试-" + deviceCount + "设备");
         config.setNumDevices(deviceCount);
-        config.setMsgsPerDevice(1000);
+        config.setMsgsPerDevice(10000);  // 每设备 1 万条
         config.setSenderThreads(Math.min(deviceCount, 20)); // 最多20个发送线程
         config.setMessageSize(100);
         config.setSendIntervalMs(0);
+        config.setWarmupMessages(deviceCount * 1000);  // 预热
         return config;
     }
     
     /**
-     * 场景3: Actor vs 同步对比测试
+     * 场景3: 大规模并发测试（每设备 1 万条消息）
      */
-    public static PerformanceTestConfig actorVsSyncComparison() {
+    public static PerformanceTestConfig largeConcurrencyTest() {
         PerformanceTestConfig config = new PerformanceTestConfig();
-        config.setTestName("Actor vs 同步对比测试");
+        config.setTestName("大规模并发测试");
         config.setNumDevices(50);
-        config.setMsgsPerDevice(1000);
+        config.setMsgsPerDevice(10000);  // 每设备 1 万条
         config.setSenderThreads(20);
         config.setMessageSize(100);
         config.setSendIntervalMs(0);
+        config.setWarmupMessages(50000);  // 预热
         return config;
     }
     
     /**
-     * 场景4: 消息峰值测试
+     * 场景4: 消息峰值测试（每设备 1 万条消息）
      */
     public static PerformanceTestConfig messagePeakTest() {
         PerformanceTestConfig config = new PerformanceTestConfig();
         config.setTestName("消息峰值测试");
         config.setNumDevices(20);
-        config.setMsgsPerDevice(5000); // 更多消息模拟峰值
+        config.setMsgsPerDevice(10000);  // 每设备 1 万条
         config.setSenderThreads(20);
         config.setMessageSize(200);
         config.setSendIntervalMs(0);
+        config.setWarmupMessages(20000);  // 预热
         return config;
     }
     
     /**
-     * 场景5: 故障隔离测试
+     * 场景5: 故障隔离测试（每设备 1 万条消息）
      */
     public static PerformanceTestConfig faultIsolationTest() {
         PerformanceTestConfig config = new PerformanceTestConfig();
         config.setTestName("故障隔离测试");
         config.setNumDevices(10);
-        config.setMsgsPerDevice(1000);
+        config.setMsgsPerDevice(10000);  // 每设备 1 万条
         config.setSenderThreads(10);
         config.setMessageSize(100);
         config.setSendIntervalMs(0);
+        config.setWarmupMessages(10000);  // 预热
         return config;
     }
     
     /**
-     * 场景6: 背压测试
+     * 场景6: 背压测试（每设备 1 万条消息）
      */
     public static PerformanceTestConfig backpressureTest() {
         PerformanceTestConfig config = new PerformanceTestConfig();
         config.setTestName("背压测试");
         config.setNumDevices(100);
-        config.setMsgsPerDevice(10000); // 大量消息测试背压
+        config.setMsgsPerDevice(10000);  // 每设备 1 万条
         config.setSenderThreads(50);
         config.setMessageSize(100);
         config.setSendIntervalMs(0);
+        config.setWarmupMessages(100000);  // 预热
         return config;
     }
     
@@ -206,9 +207,8 @@ public class PerformanceTestConfig {
      */
     public String getDescription() {
         return String.format(
-            "测试: %s | 设备: %d | 消息/设备: %d | 总消息: %d | Actor: %s | 线程: %d",
-            testName, numDevices, msgsPerDevice, getTotalMessages(), 
-            useActorSystem ? "启用" : "禁用", senderThreads
+            "测试: %s | 设备: %d | 消息/设备: %d | 总消息: %d | 线程: %d",
+            testName, numDevices, msgsPerDevice, getTotalMessages(), senderThreads
         );
     }
 }

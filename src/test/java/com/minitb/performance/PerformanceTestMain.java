@@ -28,8 +28,8 @@ public class PerformanceTestMain {
                 case "multi":
                     runMultiDeviceTest();
                     break;
-                case "comparison":
-                    runComparisonTest();
+                case "large":
+                    runLargeConcurrencyTest();
                     break;
                 case "peak":
                     runPeakTest();
@@ -72,30 +72,15 @@ public class PerformanceTestMain {
     private static void runSingleDeviceTest() throws Exception {
         log.info("执行单设备吞吐量测试...");
         
-        // Actor 模式
-        PerformanceTestConfig actorConfig = PerformanceTestConfig.singleDeviceThroughput();
-        actorConfig.setUseActorSystem(true);
+        PerformanceTestConfig config = PerformanceTestConfig.singleDeviceThroughput();
         
-        PerformanceTestRunner actorRunner = new PerformanceTestRunner(actorConfig);
+        PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
-            actorRunner.initialize();
-            PerformanceMetrics actorMetrics = actorRunner.runTest();
-            log.info("Actor 模式结果: {}", actorMetrics.generateSummaryReport());
+            runner.initialize();
+            PerformanceMetrics metrics = runner.runTest();
+            log.info("测试结果: {}", metrics.generateSummaryReport());
         } finally {
-            actorRunner.cleanup();
-        }
-        
-        // 同步模式
-        PerformanceTestConfig syncConfig = PerformanceTestConfig.singleDeviceThroughput();
-        syncConfig.setUseActorSystem(false);
-        
-        PerformanceTestRunner syncRunner = new PerformanceTestRunner(syncConfig);
-        try {
-            syncRunner.initialize();
-            PerformanceMetrics syncMetrics = syncRunner.runTest();
-            log.info("同步模式结果: {}", syncMetrics.generateSummaryReport());
-        } finally {
-            syncRunner.cleanup();
+            runner.cleanup();
         }
         
         log.info("单设备测试完成");
@@ -113,7 +98,6 @@ public class PerformanceTestMain {
             log.info("测试 {} 个设备并发", deviceCount);
             
             PerformanceTestConfig config = PerformanceTestConfig.multiDeviceConcurrency(deviceCount);
-            config.setUseActorSystem(true);
             
             PerformanceTestRunner runner = new PerformanceTestRunner(config);
             try {
@@ -127,41 +111,20 @@ public class PerformanceTestMain {
     }
     
     /**
-     * 执行对比测试
+     * 执行大规模并发测试
      */
-    private static void runComparisonTest() throws Exception {
-        log.info("执行 Actor vs 同步对比测试...");
+    private static void runLargeConcurrencyTest() throws Exception {
+        log.info("执行大规模并发测试...");
         
-        PerformanceTestConfig baseConfig = PerformanceTestConfig.actorVsSyncComparison();
+        PerformanceTestConfig config = PerformanceTestConfig.largeConcurrencyTest();
         
-        // Actor 模式
-        PerformanceTestConfig actorConfig = new PerformanceTestConfig();
-        copyConfig(baseConfig, actorConfig);
-        actorConfig.setUseActorSystem(true);
-        actorConfig.setTestName("Actor vs 同步对比-Actor模式");
-        
-        PerformanceTestRunner actorRunner = new PerformanceTestRunner(actorConfig);
+        PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
-            actorRunner.initialize();
-            PerformanceMetrics actorMetrics = actorRunner.runTest();
-            log.info("Actor 模式结果: {}", actorMetrics.generateSummaryReport());
+            runner.initialize();
+            PerformanceMetrics metrics = runner.runTest();
+            log.info("大规模并发测试结果: {}", metrics.generateSummaryReport());
         } finally {
-            actorRunner.cleanup();
-        }
-        
-        // 同步模式
-        PerformanceTestConfig syncConfig = new PerformanceTestConfig();
-        copyConfig(baseConfig, syncConfig);
-        syncConfig.setUseActorSystem(false);
-        syncConfig.setTestName("Actor vs 同步对比-同步模式");
-        
-        PerformanceTestRunner syncRunner = new PerformanceTestRunner(syncConfig);
-        try {
-            syncRunner.initialize();
-            PerformanceMetrics syncMetrics = syncRunner.runTest();
-            log.info("同步模式结果: {}", syncMetrics.generateSummaryReport());
-        } finally {
-            syncRunner.cleanup();
+            runner.cleanup();
         }
     }
     
@@ -172,7 +135,6 @@ public class PerformanceTestMain {
         log.info("执行消息峰值测试...");
         
         PerformanceTestConfig config = PerformanceTestConfig.messagePeakTest();
-        config.setUseActorSystem(true);
         
         PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
@@ -191,7 +153,6 @@ public class PerformanceTestMain {
         log.info("执行故障隔离测试...");
         
         PerformanceTestConfig config = PerformanceTestConfig.faultIsolationTest();
-        config.setUseActorSystem(true);
         
         PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
@@ -210,7 +171,6 @@ public class PerformanceTestMain {
         log.info("执行背压测试...");
         
         PerformanceTestConfig config = PerformanceTestConfig.backpressureTest();
-        config.setUseActorSystem(true);
         
         PerformanceTestRunner runner = new PerformanceTestRunner(config);
         try {
@@ -248,18 +208,18 @@ public class PerformanceTestMain {
         log.info("用法: java PerformanceTestMain [测试类型]");
         log.info("");
         log.info("测试类型:");
-        log.info("  full        - 执行完整测试套件（默认）");
-        log.info("  single      - 单设备吞吐量测试");
-        log.info("  multi       - 多设备并发测试");
-        log.info("  comparison  - Actor vs 同步对比测试");
-        log.info("  peak        - 消息峰值测试");
-        log.info("  fault       - 故障隔离测试");
+        log.info("  full         - 执行完整测试套件（默认）");
+        log.info("  single       - 单设备吞吐量测试");
+        log.info("  multi        - 多设备并发测试");
+        log.info("  large        - 大规模并发测试");
+        log.info("  peak         - 消息峰值测试");
+        log.info("  fault        - 故障隔离测试");
         log.info("  backpressure - 背压测试");
         log.info("");
         log.info("示例:");
         log.info("  java PerformanceTestMain full");
         log.info("  java PerformanceTestMain single");
-        log.info("  java PerformanceTestMain comparison");
+        log.info("  java PerformanceTestMain large");
         log.info("========================================");
     }
 }

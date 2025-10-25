@@ -26,9 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 1. 设备认证
  * 2. 消息转换（JSON -> Actor 消息）
  * 3. 限流检查
- * 4. 通过 Actor 系统异步转发（改进！）
+ * 4. 通过 Actor 系统异步转发
  * 
- * 改进：集成 Actor 系统
+ * Actor 系统架构：
  * - 每个设备有独立的 DeviceActor
  * - 消息通过 Actor 系统异步传递
  * - 自动队列缓冲和背压保护
@@ -42,9 +42,8 @@ public class TransportService {
     // 规则引擎服务
     private final RuleEngineService ruleEngineService;
     
-    // Actor 系统（可选，如果设置则使用 Actor 模式）
+    // Actor 系统
     private MiniTbActorSystem actorSystem;
-    private boolean useActorSystem = false;
     
     public TransportService(RuleEngineService ruleEngineService) {
         this.ruleEngineService = ruleEngineService;
@@ -52,13 +51,12 @@ public class TransportService {
     }
     
     /**
-     * 设置 Actor 系统并启用 Actor 模式
+     * 设置 Actor 系统
      * 必须在使用前调用
      */
-    public void enableActorSystem(MiniTbActorSystem actorSystem) {
+    public void setActorSystem(MiniTbActorSystem actorSystem) {
         this.actorSystem = actorSystem;
-        this.useActorSystem = true;
-        log.info("传输服务已启用 Actor 模式");
+        log.info("传输服务已设置 Actor 系统");
         
         // 创建规则引擎 Actor
         RuleEngineActor ruleEngineActor = new RuleEngineActor(ruleEngineService);
@@ -101,8 +99,8 @@ public class TransportService {
         deviceRegistry.put(device.getAccessToken(), device);
         log.info("设备注册成功: {} (token: {})", device.getName(), device.getAccessToken());
         
-        // 如果启用了 Actor 模式，创建 DeviceActor
-        if (useActorSystem) {
+        // 如果 Actor 系统已设置，创建 DeviceActor
+        if (actorSystem != null) {
             createDeviceActor(device);
         }
     }
@@ -123,9 +121,7 @@ public class TransportService {
 
     /**
      * 处理遥测数据上报
-     * 这是核心入口方法！
-     * 
-     * 改进：使用 Actor 模式 或 直接调用模式（兼容）
+     * 这是核心入口方法！通过 Actor 系统异步处理
      */
     public void processTelemetry(String accessToken, String telemetryJson) {
         log.debug("接收到遥测数据: token={}, data={}", accessToken, telemetryJson);
@@ -143,20 +139,12 @@ public class TransportService {
             return;
         }
         
-        // 3. 使用 Actor 模式 或 直接调用模式
-        if (useActorSystem) {
-            // Actor 模式：创建 Actor 消息并异步发送
-            sendToDeviceActorAsync(device, telemetryJson);
-        } else {
-            // 直接调用模式（旧方式，兼容）
-            sendToRuleEngineSync(device, telemetryJson);
+        // 3. 通过 Actor 系统异步发送
+        if (actorSystem == null) {
+            log.error("Actor 系统未初始化，无法处理消息");
+            return;
         }
-    }
-    
-    /**
-     * 通过 Actor 系统异步发送（新方式）
-     */
-    private void sendToDeviceActorAsync(Device device, String telemetryJson) {
+        
         TransportToDeviceMsg actorMsg = new TransportToDeviceMsg(
             device.getId(),
             device.getAccessToken(),
@@ -170,42 +158,10 @@ public class TransportService {
         log.debug("通过 Actor 系统发送消息: deviceId={}, actorId={}", device.getId(), actorId);
         actorSystem.tell(actorId, actorMsg);
     }
-    
-    /**
-     * 直接同步调用（旧方式，兼容）
-     */
-    private void sendToRuleEngineSync(Device device, String telemetryJson) {
-        // 解析JSON数据为强类型KvEntry
-        List<TsKvEntry> tsKvEntries;
-        try {
-            tsKvEntries = parseJsonToKvEntries(telemetryJson);
-            log.debug("解析得到 {} 个遥测数据点", tsKvEntries.size());
-        } catch (Exception e) {
-            log.error("JSON解析失败: {}", telemetryJson, e);
-            return;
-        }
-        
-        // 创建元数据
-        Map<String, String> metaData = createMetaData(device);
-        
-        // 创建TbMsg消息
-        TbMsg tbMsg = TbMsg.newMsg(
-            TbMsgType.POST_TELEMETRY_REQUEST,
-            device.getId(),
-            metaData,
-            telemetryJson,
-            tsKvEntries
-        );
-        tbMsg.setTenantId(device.getTenantId());
-        
-        log.debug("创建TbMsg: {}, 包含 {} 个强类型数据点", tbMsg.getId(), tsKvEntries.size());
-        
-        // 直接调用规则引擎
-        ruleEngineService.processMessage(tbMsg);
-    }
 
     /**
      * 处理属性上报
+     * 注意：属性上报目前简化实现，可以考虑也通过 Actor 系统处理
      */
     public void processAttributes(String accessToken, String attributesJson) {
         log.debug("接收到属性数据: token={}, data={}", accessToken, attributesJson);
@@ -215,16 +171,26 @@ public class TransportService {
             return;
         }
         
+        // 解析为强类型数据
+        List<TsKvEntry> tsKvEntries;
+        try {
+            tsKvEntries = parseJsonToKvEntries(attributesJson);
+        } catch (Exception e) {
+            log.error("属性JSON解析失败: {}", attributesJson, e);
+            return;
+        }
+        
         Map<String, String> metaData = createMetaData(device);
         TbMsg tbMsg = TbMsg.newMsg(
             TbMsgType.POST_ATTRIBUTES_REQUEST,
             device.getId(),
             metaData,
-            attributesJson
+            attributesJson,
+            tsKvEntries
         );
         tbMsg.setTenantId(device.getTenantId());
         
-        // 直接调用规则引擎
+        // 直接调用规则引擎（简化实现）
         ruleEngineService.processMessage(tbMsg);
     }
 
