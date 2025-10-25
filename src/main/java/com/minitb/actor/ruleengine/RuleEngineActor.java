@@ -4,7 +4,7 @@ import com.minitb.actor.MiniTbActor;
 import com.minitb.actor.MiniTbActorContext;
 import com.minitb.actor.MiniTbActorMsg;
 import com.minitb.actor.msg.ToRuleEngineMsg;
-import com.minitb.ruleengine.RuleEngineService;
+import com.minitb.service.rule.RuleEngineService;
 import lombok.extern.slf4j.Slf4j;
 
 /**

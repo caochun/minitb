@@ -1,8 +1,8 @@
 package com.minitb.storage;
 
-import com.minitb.common.entity.DeviceId;
-import com.minitb.common.kv.DataType;
-import com.minitb.common.kv.TsKvEntry;
+import com.minitb.domain.entity.DeviceId;
+import com.minitb.domain.ts.DataType;
+import com.minitb.domain.ts.TsKvEntry;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.FileWriter;

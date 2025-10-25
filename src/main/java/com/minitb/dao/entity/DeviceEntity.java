@@ -1,8 +1,8 @@
 package com.minitb.dao.entity;
 
-import com.minitb.common.entity.Device;
-import com.minitb.common.entity.DeviceId;
-import com.minitb.common.entity.DeviceProfileId;
+import com.minitb.domain.entity.Device;
+import com.minitb.domain.entity.DeviceId;
+import com.minitb.domain.entity.DeviceProfileId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

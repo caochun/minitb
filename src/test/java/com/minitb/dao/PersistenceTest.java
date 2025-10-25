@@ -1,9 +1,9 @@
 package com.minitb.dao;
 
-import com.minitb.common.entity.*;
-import com.minitb.common.kv.DataType;
-import com.minitb.relation.EntityRelation;
-import com.minitb.relation.RelationTypeGroup;
+import com.minitb.domain.entity.*;
+import com.minitb.domain.ts.DataType;
+import com.minitb.domain.relation.EntityRelation;
+import com.minitb.domain.relation.RelationTypeGroup;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;

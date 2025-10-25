@@ -1,7 +1,7 @@
 package com.minitb.actor.msg;
 
 import com.minitb.actor.MiniTbActorMsg;
-import com.minitb.common.entity.DeviceId;
+import com.minitb.domain.entity.DeviceId;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

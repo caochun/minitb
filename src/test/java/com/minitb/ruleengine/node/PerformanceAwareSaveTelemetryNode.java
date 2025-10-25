@@ -1,6 +1,6 @@
-package com.minitb.ruleengine.node;
+package com.minitb.domain.rule.node;
 
-import com.minitb.common.msg.TbMsg;
+import com.minitb.domain.msg.TbMsg;
 import com.minitb.performance.PerformanceMetrics;
 import com.minitb.storage.TelemetryStorage;
 import lombok.extern.slf4j.Slf4j;

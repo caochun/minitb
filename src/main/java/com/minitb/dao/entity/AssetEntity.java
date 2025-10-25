@@ -1,7 +1,7 @@
 package com.minitb.dao.entity;
 
-import com.minitb.common.entity.Asset;
-import com.minitb.common.entity.AssetId;
+import com.minitb.domain.entity.Asset;
+import com.minitb.domain.entity.AssetId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

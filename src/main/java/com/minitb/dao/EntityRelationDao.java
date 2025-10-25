@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
-import com.minitb.relation.EntityRelation;
-import com.minitb.relation.RelationTypeGroup;
+import com.minitb.domain.relation.EntityRelation;
+import com.minitb.domain.relation.RelationTypeGroup;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;

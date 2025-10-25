@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
-import com.minitb.common.entity.Device;
-import com.minitb.common.entity.DeviceId;
+import com.minitb.domain.entity.Device;
+import com.minitb.domain.entity.DeviceId;
 import com.minitb.dao.entity.DeviceEntity;
 import lombok.extern.slf4j.Slf4j;
 

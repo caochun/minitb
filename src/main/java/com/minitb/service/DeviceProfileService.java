@@ -1,9 +1,9 @@
 package com.minitb.service;
 
-import com.minitb.common.entity.DeviceProfile;
-import com.minitb.common.entity.DeviceProfileId;
-import com.minitb.common.entity.TelemetryDefinition;
-import com.minitb.common.kv.DataType;
+import com.minitb.domain.entity.DeviceProfile;
+import com.minitb.domain.entity.DeviceProfileId;
+import com.minitb.domain.entity.TelemetryDefinition;
+import com.minitb.domain.ts.DataType;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;

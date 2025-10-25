@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
-import com.minitb.common.entity.Asset;
-import com.minitb.common.entity.AssetId;
+import com.minitb.domain.entity.Asset;
+import com.minitb.domain.entity.AssetId;
 import com.minitb.dao.entity.AssetEntity;
 import lombok.extern.slf4j.Slf4j;
 
