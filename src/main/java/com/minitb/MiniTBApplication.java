@@ -6,6 +6,13 @@ import com.minitb.domain.ts.DataType;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.relation.EntityRelation;
 import com.minitb.service.relation.EntityRelationService;
+import com.minitb.service.relation.DefaultEntityRelationService;
+import com.minitb.dao.EntityRelationDao;
+import com.minitb.dao.impl.EntityRelationDaoImpl;
+import com.minitb.dao.DaoFactory;
+import java.sql.Connection;
+import java.sql.SQLException;
+import com.minitb.dao.DatabaseManager;
 import com.minitb.domain.relation.EntitySearchDirection;
 import com.minitb.domain.relation.RelationTypeGroup;
 import com.minitb.domain.rule.RuleChain;
@@ -13,7 +20,8 @@ import com.minitb.service.rule.RuleEngineService;
 import com.minitb.domain.rule.node.FilterNode;
 import com.minitb.domain.rule.node.LogNode;
 import com.minitb.domain.rule.node.SaveTelemetryNode;
-import com.minitb.service.DeviceProfileService;
+import com.minitb.service.deviceprofile.DeviceProfileService;
+import com.minitb.service.deviceprofile.DefaultDeviceProfileService;
 import com.minitb.storage.TelemetryStorage;
 import com.minitb.transport.mqtt.MqttTransportService;
 import com.minitb.transport.service.TransportService;
@@ -43,13 +51,18 @@ public class MiniTBApplication {
             log.info("\n[1/8] 初始化数据存储层...");
             TelemetryStorage storage = new TelemetryStorage(true);
             
+            // 1.5. 初始化DAO工厂
+            log.info("\n[1.5/8] 初始化DAO工厂...");
+            Connection connection = DatabaseManager.getConnection();
+            DaoFactory daoFactory = new DaoFactory(connection);
+            
             // 2. 初始化设备配置文件服务
             log.info("\n[2/8] 初始化设备配置文件服务...");
-            DeviceProfileService profileService = new DeviceProfileService();
+            DeviceProfileService profileService = new DefaultDeviceProfileService(daoFactory.getDeviceProfileDao());
             
             // 创建 Prometheus 监控配置文件（CPU + 内存）
             DeviceProfile promMonitorProfile = createPrometheusMonitorProfile();
-            profileService.saveProfile(promMonitorProfile);
+            profileService.save(promMonitorProfile);
             log.info("创建 Prometheus 监控配置: {}", promMonitorProfile.getName());
             log.info("  包含 {} 个遥测定义:", promMonitorProfile.getTelemetryDefinitions().size());
             promMonitorProfile.getTelemetryDefinitions().forEach(def -> {
@@ -63,7 +76,14 @@ public class MiniTBApplication {
             
             // 3. 初始化实体关系服务
             log.info("\n[3/8] 初始化实体关系服务...");
-            EntityRelationService relationService = new EntityRelationService();
+            EntityRelationDao relationDao;
+            try {
+                relationDao = new EntityRelationDaoImpl(daoFactory.getConnection());
+            } catch (Exception e) {
+                log.error("初始化EntityRelationDao失败", e);
+                throw new RuntimeException("无法初始化实体关系服务", e);
+            }
+            EntityRelationService relationService = new DefaultEntityRelationService(relationDao);
             
             // 演示实体关系的创建和查询
             demoEntityRelations(relationService);
@@ -125,7 +145,7 @@ public class MiniTBApplication {
             
             // 创建并注册监控设备2: node_exporter 系统监控
             DeviceProfile nodeExporterProfile = createNodeExporterProfile();
-            profileService.saveProfile(nodeExporterProfile);
+            profileService.save(nodeExporterProfile);
             
             promPuller.registerDeviceWithProfile(
                 "localhost:9100",
@@ -250,36 +270,25 @@ public class MiniTBApplication {
             EntityRelation.CONTAINS_TYPE
         ));
         
-        // 打印所有关系
-        relationService.printAllRelations();
-        
         // 查询演示
         log.info("\n>>> 查询实体关系 <<<");
         
         // 1. 查询建筑的所有子资产（1层深度）
-        List<EntityRelation> buildingChildren = relationService.findByFrom(
-            building.getId().getId(), RelationTypeGroup.COMMON
+        List<EntityRelation> buildingChildren = relationService.findAllByFrom(
+            building.getId(), RelationTypeGroup.COMMON
         );
         log.info("建筑 {} 包含 {} 个直接子资产", building.getName(), buildingChildren.size());
         
-        // 2. 递归查询建筑下的所有实体（多层深度）
-        Set<UUID> allRelated = relationService.findRelatedEntities(
-            building.getId().getId(), EntitySearchDirection.FROM, 10
-        );
-        log.info("建筑 {} 递归包含 {} 个实体（所有层级）", building.getName(), allRelated.size());
-        
-        // 3. 查询设备所属的房间（反向查询）
-        List<EntityRelation> deviceParents = relationService.findByTo(
-            tempSensor1.getId().getId(), RelationTypeGroup.COMMON
+        // 2. 查询设备所属的房间（反向查询）
+        List<EntityRelation> deviceParents = relationService.findAllByTo(
+            tempSensor1.getId(), RelationTypeGroup.COMMON
         );
         log.info("设备 {} 属于 {} 个房间", tempSensor1.getName(), deviceParents.size());
         
-        // 4. 检查关系是否存在
+        // 3. 检查关系是否存在
         boolean exists = relationService.checkRelation(
-            building.getId().getId(), "Asset",
-            floor1.getId().getId(), "Asset",
-            EntityRelation.CONTAINS_TYPE,
-            RelationTypeGroup.COMMON
+            building.getId(), floor1.getId(),
+            EntityRelation.CONTAINS_TYPE, RelationTypeGroup.COMMON
         );
         log.info("建筑 {} 包含 楼层 {}? {}", building.getName(), floor1.getName(), exists);
         

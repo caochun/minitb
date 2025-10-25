@@ -98,6 +98,30 @@ public class DeviceProfile {
     }
     
     /**
+     * 检查是否包含指定的遥测定义
+     */
+    public boolean hasTelemetryDefinition(String key) {
+        return telemetryDefinitions.stream()
+                .anyMatch(def -> def.getKey().equals(key));
+    }
+    
+    /**
+     * 移除指定的遥测定义
+     */
+    public void removeTelemetryDefinition(String key) {
+        telemetryDefinitions.removeIf(def -> def.getKey().equals(key));
+    }
+    
+    /**
+     * 更新遥测定义
+     */
+    public void updateTelemetryDefinition(TelemetryDefinition telemetryDefinition) {
+        // 先移除旧的，再添加新的
+        removeTelemetryDefinition(telemetryDefinition.getKey());
+        addTelemetryDefinition(telemetryDefinition);
+    }
+    
+    /**
      * 数据源类型
      */
     public enum DataSourceType {

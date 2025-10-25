@@ -3,49 +3,48 @@ package com.minitb.domain.entity;
 import java.util.UUID;
 
 /**
- * 设备配置文件ID
+ * 规则节点ID
  * 
  * 改进点：
  * 1. 不可变ID（继承自UUIDBased）
  * 2. 缓存hashCode
  * 3. 工厂方法
- * 4. 类型安全（与DeviceId、AssetId一致）
+ * 4. 类型安全
  */
-public class DeviceProfileId extends UUIDBased {
+public class RuleNodeId extends UUIDBased {
     
     private static final long serialVersionUID = 1L;
     
     /**
      * 构造器：使用指定UUID
      */
-    public DeviceProfileId(UUID id) {
+    public RuleNodeId(UUID id) {
         super(id);
     }
     
     /**
      * 工厂方法：从UUID创建
      */
-    public static DeviceProfileId fromUUID(UUID uuid) {
-        return new DeviceProfileId(uuid);
+    public static RuleNodeId fromUUID(UUID uuid) {
+        return new RuleNodeId(uuid);
     }
     
     /**
      * 工厂方法：从字符串创建
      */
-    public static DeviceProfileId fromString(String profileId) {
-        return new DeviceProfileId(UUID.fromString(profileId));
+    public static RuleNodeId fromString(String ruleNodeId) {
+        return new RuleNodeId(UUID.fromString(ruleNodeId));
     }
     
     /**
      * 工厂方法：生成随机ID
      */
-    public static DeviceProfileId random() {
-        return new DeviceProfileId(UUID.randomUUID());
+    public static RuleNodeId random() {
+        return new RuleNodeId(UUID.randomUUID());
     }
     
     @Override
     public EntityType getEntityType() {
-        return EntityType.DEVICE_PROFILE;
+        return EntityType.RULE_CHAIN; // RuleNode属于RuleChain
     }
 }
-

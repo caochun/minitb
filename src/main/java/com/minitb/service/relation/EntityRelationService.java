@@ -1,294 +1,96 @@
 package com.minitb.service.relation;
 
 import com.minitb.domain.relation.EntityRelation;
-import com.minitb.domain.relation.EntitySearchDirection;
 import com.minitb.domain.relation.RelationTypeGroup;
-import lombok.extern.slf4j.Slf4j;
+import com.minitb.domain.entity.EntityId;
+import com.minitb.service.MiniTbException;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.List;
 
 /**
- * 实体关系服务
+ * 实体关系服务接口
  * 
- * 职责:
- * 1. 保存和删除实体关系
- * 2. 查询实体的关系
- * 3. 支持递归查询关系路径
- * 
- * 简化版：移除多租户支持，专注于关系管理核心功能
+ * 参考ThingsBoard的BaseRelationService设计
  */
-@Slf4j
-public class EntityRelationService {
-    
-    // 关系存储: key = relationKey, value = EntityRelation
-    private final Map<String, EntityRelation> relations = new ConcurrentHashMap<>();
-    
-    // 索引1: fromId -> List<EntityRelation> (出边索引)
-    private final Map<UUID, List<EntityRelation>> fromIndex = new ConcurrentHashMap<>();
-    
-    // 索引2: toId -> List<EntityRelation> (入边索引)
-    private final Map<UUID, List<EntityRelation>> toIndex = new ConcurrentHashMap<>();
-    
-    public EntityRelationService() {
-        log.info("实体关系服务初始化完成");
-    }
+public interface EntityRelationService {
     
     /**
-     * 保存关系
+     * 保存关系 - 参考ThingsBoard的saveRelation
      */
-    public EntityRelation saveRelation(EntityRelation relation) {
-        String key = relation.getKey();
-        
-        // 保存关系
-        relations.put(key, relation);
-        
-        // 更新fromIndex
-        fromIndex.computeIfAbsent(relation.getFromId(), k -> new ArrayList<>())
-                 .add(relation);
-        
-        // 更新toIndex
-        toIndex.computeIfAbsent(relation.getToId(), k -> new ArrayList<>())
-               .add(relation);
-        
-        log.info("保存实体关系: {} [{}] --[{}]--> [{}] {}", 
-                 relation.getFromType(), relation.getFromId(),
-                 relation.getRelationType(),
-                 relation.getToType(), relation.getToId());
-        
-        return relation;
-    }
+    EntityRelation saveRelation(EntityRelation relation) throws MiniTbException;
     
     /**
-     * 批量保存关系
+     * 批量保存关系 - 参考ThingsBoard的saveRelations
      */
-    public void saveRelations(List<EntityRelation> relationList) {
-        for (EntityRelation relation : relationList) {
-            saveRelation(relation);
-        }
-        log.info("批量保存 {} 个实体关系", relationList.size());
-    }
+    List<EntityRelation> saveRelations(List<EntityRelation> relations) throws MiniTbException;
     
     /**
-     * 删除关系
+     * 删除关系 - 参考ThingsBoard的deleteRelation
      */
-    public boolean deleteRelation(EntityRelation relation) {
-        String key = relation.getKey();
-        
-        EntityRelation removed = relations.remove(key);
-        if (removed == null) {
-            log.warn("关系不存在: {}", key);
-            return false;
-        }
-        
-        // 更新索引
-        removeFromIndex(fromIndex, relation.getFromId(), relation);
-        removeFromIndex(toIndex, relation.getToId(), relation);
-        
-        log.info("删除实体关系: {} [{}] --[{}]--> [{}] {}", 
-                 relation.getFromType(), relation.getFromId(),
-                 relation.getRelationType(),
-                 relation.getToType(), relation.getToId());
-        
-        return true;
-    }
+    EntityRelation deleteRelation(EntityRelation relation) throws MiniTbException;
     
     /**
-     * 删除关系（通过参数）
+     * 根据源实体查找关系 - 参考ThingsBoard的findAllByFrom
      */
-    public boolean deleteRelation(UUID fromId, String fromType, 
-                                  UUID toId, String toType, String relationType, 
-                                  RelationTypeGroup typeGroup) {
-        EntityRelation relation = new EntityRelation(fromId, fromType, toId, toType, relationType, typeGroup);
-        return deleteRelation(relation);
-    }
+    List<EntityRelation> findAllByFrom(EntityId from, RelationTypeGroup typeGroup) throws MiniTbException;
     
     /**
-     * 删除实体的所有关系（出边和入边）
+     * 根据源实体查找所有关系
      */
-    public void deleteEntityRelations(UUID entityId) {
-        // 删除所有出边
-        List<EntityRelation> outbound = fromIndex.getOrDefault(entityId, new ArrayList<>());
-        for (EntityRelation relation : new ArrayList<>(outbound)) {
-            deleteRelation(relation);
-        }
-        
-        // 删除所有入边
-        List<EntityRelation> inbound = toIndex.getOrDefault(entityId, new ArrayList<>());
-        for (EntityRelation relation : new ArrayList<>(inbound)) {
-            deleteRelation(relation);
-        }
-        
-        log.info("删除实体 {} 的所有关系", entityId);
-    }
+    List<EntityRelation> findAllByFrom(EntityId from) throws MiniTbException;
     
     /**
-     * 查询从某实体出发的所有关系
+     * 根据源实体和关系类型查找关系
      */
-    public List<EntityRelation> findByFrom(UUID fromId, RelationTypeGroup typeGroup) {
-        List<EntityRelation> result = fromIndex.getOrDefault(fromId, new ArrayList<>());
-        
-        if (typeGroup != null) {
-            result = result.stream()
-                    .filter(r -> r.getTypeGroup() == typeGroup)
-                    .collect(Collectors.toList());
-        }
-        
-        log.debug("查询出边关系: fromId={}, typeGroup={}, 结果数={}", fromId, typeGroup, result.size());
-        return new ArrayList<>(result);
-    }
+    List<EntityRelation> findAllByFromAndType(EntityId from, String relationType, RelationTypeGroup typeGroup) throws MiniTbException;
     
     /**
-     * 查询指向某实体的所有关系
+     * 根据目标实体查找关系 - 参考ThingsBoard的findAllByTo
      */
-    public List<EntityRelation> findByTo(UUID toId, RelationTypeGroup typeGroup) {
-        List<EntityRelation> result = toIndex.getOrDefault(toId, new ArrayList<>());
-        
-        if (typeGroup != null) {
-            result = result.stream()
-                    .filter(r -> r.getTypeGroup() == typeGroup)
-                    .collect(Collectors.toList());
-        }
-        
-        log.debug("查询入边关系: toId={}, typeGroup={}, 结果数={}", toId, typeGroup, result.size());
-        return new ArrayList<>(result);
-    }
+    List<EntityRelation> findAllByTo(EntityId to, RelationTypeGroup typeGroup) throws MiniTbException;
     
     /**
-     * 查询从某实体出发的指定类型关系
+     * 根据目标实体查找所有关系
      */
-    public List<EntityRelation> findByFromAndType(UUID fromId, 
-                                                   String relationType, RelationTypeGroup typeGroup) {
-        return findByFrom(fromId, typeGroup).stream()
-                .filter(r -> r.getRelationType().equals(relationType))
-                .collect(Collectors.toList());
-    }
+    List<EntityRelation> findAllByTo(EntityId to) throws MiniTbException;
     
     /**
-     * 查询指向某实体的指定类型关系
+     * 根据目标实体和关系类型查找关系
      */
-    public List<EntityRelation> findByToAndType(UUID toId, 
-                                                 String relationType, RelationTypeGroup typeGroup) {
-        return findByTo(toId, typeGroup).stream()
-                .filter(r -> r.getRelationType().equals(relationType))
-                .collect(Collectors.toList());
-    }
+    List<EntityRelation> findAllByToAndType(EntityId to, String relationType, RelationTypeGroup typeGroup) throws MiniTbException;
     
     /**
-     * 检查关系是否存在
+     * 检查关系是否存在 - 参考ThingsBoard的checkRelation
      */
-    public boolean checkRelation(UUID fromId, String fromType,
-                                 UUID toId, String toType, String relationType, 
-                                 RelationTypeGroup typeGroup) {
-        EntityRelation relation = new EntityRelation(fromId, fromType, toId, toType, relationType, typeGroup);
-        return relations.containsKey(relation.getKey());
-    }
+    boolean checkRelation(EntityId from, EntityId to, String relationType, RelationTypeGroup typeGroup) throws MiniTbException;
     
     /**
-     * 获取特定关系
+     * 获取特定关系 - 参考ThingsBoard的getRelation
      */
-    public EntityRelation getRelation(UUID fromId, String fromType,
-                                      UUID toId, String toType, String relationType,
-                                      RelationTypeGroup typeGroup) {
-        EntityRelation relation = new EntityRelation(fromId, fromType, toId, toType, relationType, typeGroup);
-        return relations.get(relation.getKey());
-    }
+    EntityRelation getRelation(EntityId from, EntityId to, String relationType, RelationTypeGroup typeGroup) throws MiniTbException;
     
     /**
-     * 递归查找关系路径
-     * @param fromId 起始实体ID
-     * @param direction 搜索方向
-     * @param maxLevel 最大层级
-     * @return 所有找到的实体ID
+     * 删除源实体的所有出站关系 - 参考ThingsBoard的deleteOutboundRelations
      */
-    public Set<UUID> findRelatedEntities(UUID fromId, 
-                                         EntitySearchDirection direction, int maxLevel) {
-        Set<UUID> visited = new HashSet<>();
-        Set<UUID> result = new HashSet<>();
-        
-        findRelatedEntitiesRecursive(fromId, direction, maxLevel, 0, visited, result);
-        
-        log.info("递归查询关系: fromId={}, direction={}, maxLevel={}, 结果数={}", 
-                 fromId, direction, maxLevel, result.size());
-        
-        return result;
-    }
+    List<EntityRelation> deleteOutboundRelations(EntityId entity) throws MiniTbException;
     
     /**
-     * 递归查找关系（内部方法）
+     * 删除源实体的特定类型组出站关系
      */
-    private void findRelatedEntitiesRecursive(UUID entityId, 
-                                              EntitySearchDirection direction, int maxLevel, 
-                                              int currentLevel, Set<UUID> visited, Set<UUID> result) {
-        if (currentLevel >= maxLevel || visited.contains(entityId)) {
-            return;
-        }
-        
-        visited.add(entityId);
-        
-        List<EntityRelation> relations;
-        if (direction == EntitySearchDirection.FROM) {
-            // 查找出边
-            relations = fromIndex.getOrDefault(entityId, new ArrayList<>());
-            for (EntityRelation relation : relations) {
-                result.add(relation.getToId());
-                findRelatedEntitiesRecursive(relation.getToId(), direction, 
-                                            maxLevel, currentLevel + 1, visited, result);
-            }
-        } else {
-            // 查找入边
-            relations = toIndex.getOrDefault(entityId, new ArrayList<>());
-            for (EntityRelation relation : relations) {
-                result.add(relation.getFromId());
-                findRelatedEntitiesRecursive(relation.getFromId(), direction, 
-                                            maxLevel, currentLevel + 1, visited, result);
-            }
-        }
-    }
+    List<EntityRelation> deleteOutboundRelations(EntityId entity, RelationTypeGroup relationTypeGroup) throws MiniTbException;
     
     /**
-     * 从索引中移除关系
+     * 删除目标实体的所有入站关系 - 参考ThingsBoard的deleteInboundRelations
      */
-    private void removeFromIndex(Map<UUID, List<EntityRelation>> index, UUID key, EntityRelation relation) {
-        List<EntityRelation> list = index.get(key);
-        if (list != null) {
-            list.removeIf(r -> r.getKey().equals(relation.getKey()));
-            if (list.isEmpty()) {
-                index.remove(key);
-            }
-        }
-    }
+    List<EntityRelation> deleteInboundRelations(EntityId entity) throws MiniTbException;
     
     /**
-     * 打印所有关系（调试用）
+     * 删除目标实体的特定类型组入站关系
      */
-    public void printAllRelations() {
-        log.info("=== 所有实体关系 ===");
-        log.info("总关系数: {}", relations.size());
-        for (EntityRelation relation : relations.values()) {
-            log.info("  {} [{}] --[{}]--> [{}] {}", 
-                     relation.getFromType(), relation.getFromId(),
-                     relation.getRelationType(),
-                     relation.getToType(), relation.getToId());
-        }
-    }
+    List<EntityRelation> deleteInboundRelations(EntityId entity, RelationTypeGroup relationTypeGroup) throws MiniTbException;
     
     /**
-     * 获取统计信息
+     * 统计关系数量
      */
-    public Map<String, Object> getStatistics() {
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalRelations", relations.size());
-        stats.put("relationTypes", relations.values().stream()
-                .map(EntityRelation::getRelationType)
-                .distinct()
-                .collect(Collectors.toList()));
-        stats.put("typeGroups", relations.values().stream()
-                .map(EntityRelation::getTypeGroup)
-                .distinct()
-                .collect(Collectors.toList()));
-        return stats;
-    }
+    long count() throws MiniTbException;
 }
-

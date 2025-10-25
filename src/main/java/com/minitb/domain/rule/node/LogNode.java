@@ -1,6 +1,7 @@
 package com.minitb.domain.rule.node;
 
 import com.minitb.domain.msg.TbMsg;
+import com.minitb.domain.entity.RuleNodeId;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -9,13 +10,20 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LogNode implements RuleNode {
     
+    private final RuleNodeId id;
     private final String prefix;
     private RuleNode next;
     
     public LogNode(String prefix) {
+        this.id = RuleNodeId.random();
         this.prefix = prefix;
     }
 
+    @Override
+    public RuleNodeId getId() {
+        return id;
+    }
+    
     @Override
     public String getName() {
         return "LogNode[" + prefix + "]";
@@ -25,9 +33,19 @@ public class LogNode implements RuleNode {
     public void setNext(RuleNode next) {
         this.next = next;
     }
+    
+    @Override
+    public void init(RuleNodeConfig config, RuleNodeContext context) {
+        // LogNode不需要特殊初始化
+    }
+    
+    @Override
+    public String getNodeType() {
+        return "LOG";
+    }
 
     @Override
-    public void onMsg(TbMsg msg) {
+    public void onMsg(TbMsg msg, RuleNodeContext context) {
         // 使用 debug 级别，避免影响性能
         if (log.isDebugEnabled()) {
             // 使用强类型数据（如果有的话）
@@ -54,7 +72,7 @@ public class LogNode implements RuleNode {
         
         // 传递给下一个节点
         if (next != null) {
-            next.onMsg(msg);
+            next.onMsg(msg, context);
         }
     }
 }
