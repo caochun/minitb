@@ -1,5 +1,6 @@
 package com.minitb.domain.protocol;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,6 +34,7 @@ public class HttpConfig implements ProtocolConfig {
     private String path;
     
     @Override
+    @JsonIgnore  // 防止 Jackson 重复序列化此字段，因为已由 @JsonTypeInfo 管理
     public String getProtocolType() {
         return "HTTP";
     }
