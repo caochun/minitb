@@ -1,6 +1,6 @@
-package com.minitb.domain.device;
+package com.minitb.domain.entity;
 
-import com.minitb.domain.telemetry.DataType;
+import com.minitb.domain.ts.DataType;
 import com.minitb.domain.protocol.HttpConfig;
 import com.minitb.domain.protocol.MqttConfig;
 import com.minitb.domain.protocol.PrometheusConfig;

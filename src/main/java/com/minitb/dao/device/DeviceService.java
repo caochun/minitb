@@ -1,10 +1,10 @@
 package com.minitb.dao.device;
 
-import com.minitb.domain.device.Device;
-import com.minitb.domain.id.DeviceId;
-import com.minitb.domain.device.DeviceProfile;
-import com.minitb.domain.id.DeviceProfileId;
-import com.minitb.domain.device.TelemetryDefinition;
+import com.minitb.domain.entity.Device;
+import com.minitb.domain.entity.DeviceId;
+import com.minitb.domain.entity.DeviceProfile;
+import com.minitb.domain.entity.DeviceProfileId;
+import com.minitb.domain.entity.TelemetryDefinition;
 import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;

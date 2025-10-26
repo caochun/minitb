@@ -1,7 +1,5 @@
 package com.minitb.domain.device;
 
-import com.minitb.domain.id.DeviceId;
-import com.minitb.domain.id.DeviceProfileId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
