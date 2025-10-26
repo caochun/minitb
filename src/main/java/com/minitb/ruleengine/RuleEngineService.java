@@ -1,4 +1,4 @@
-package com.minitb.service.rule;
+package com.minitb.ruleengine;
 
 import com.minitb.domain.msg.TbMsg;
 import com.minitb.domain.msg.TbMsgType;

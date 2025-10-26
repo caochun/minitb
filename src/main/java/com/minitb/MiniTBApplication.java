@@ -16,7 +16,7 @@ import com.minitb.dao.DatabaseManager;
 import com.minitb.domain.relation.EntitySearchDirection;
 import com.minitb.domain.relation.RelationTypeGroup;
 import com.minitb.domain.rule.RuleChain;
-import com.minitb.service.rule.RuleEngineService;
+import com.minitb.ruleengine.RuleEngineService;
 import com.minitb.domain.rule.node.FilterNode;
 import com.minitb.domain.rule.node.LogNode;
 import com.minitb.domain.rule.node.SaveTelemetryNode;

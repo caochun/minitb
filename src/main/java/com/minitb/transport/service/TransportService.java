@@ -11,7 +11,7 @@ import com.minitb.domain.entity.Device;
 import com.minitb.domain.ts.*;
 import com.minitb.domain.msg.TbMsg;
 import com.minitb.domain.msg.TbMsgType;
-import com.minitb.service.rule.RuleEngineService;
+import com.minitb.ruleengine.RuleEngineService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
