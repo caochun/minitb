@@ -1,4 +1,4 @@
-package com.minitb.service;
+package com.minitb.dao.common.exception;
 
 /**
  * MiniTB自定义异常

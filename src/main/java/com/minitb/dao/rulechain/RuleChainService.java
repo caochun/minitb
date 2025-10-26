@@ -1,9 +1,9 @@
-package com.minitb.service.rulechain;
+package com.minitb.dao.rulechain;
 
 import com.minitb.domain.rule.RuleChain;
 import com.minitb.domain.rule.RuleChainId;
 import com.minitb.domain.rule.node.RuleNode;
-import com.minitb.service.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;
 import java.util.Optional;

@@ -1,9 +1,9 @@
-package com.minitb.service.deviceprofile;
+package com.minitb.dao.deviceprofile;
 
 import com.minitb.domain.entity.DeviceProfile;
 import com.minitb.domain.entity.DeviceProfileId;
 import com.minitb.domain.entity.TelemetryDefinition;
-import com.minitb.service.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;
 import java.util.Optional;

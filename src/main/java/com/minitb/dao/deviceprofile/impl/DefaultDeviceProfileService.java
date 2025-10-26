@@ -1,12 +1,13 @@
-package com.minitb.service.deviceprofile;
+package com.minitb.dao.deviceprofile.impl;
 
+import com.minitb.dao.deviceprofile.DeviceProfileService;
 import com.minitb.dao.DeviceProfileDao;
 import com.minitb.domain.entity.DeviceProfile;
 import com.minitb.domain.entity.DeviceProfileId;
 import com.minitb.domain.entity.TelemetryDefinition;
-import com.minitb.service.AbstractEntityService;
-import com.minitb.service.MiniTbException;
-import com.minitb.service.MiniTbErrorCode;
+import com.minitb.dao.common.AbstractEntityService;
+import com.minitb.dao.common.exception.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

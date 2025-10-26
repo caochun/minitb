@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
 import com.minitb.domain.entity.EntityId;
-import com.minitb.service.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;
 import java.util.Optional;

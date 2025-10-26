@@ -1,8 +1,8 @@
 package com.minitb.dao;
 
 import com.minitb.domain.entity.EntityId;
-import com.minitb.service.MiniTbException;
-import com.minitb.service.MiniTbErrorCode;
+import com.minitb.dao.common.exception.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbErrorCode;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;

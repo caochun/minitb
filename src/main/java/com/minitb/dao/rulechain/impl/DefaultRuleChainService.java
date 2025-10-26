@@ -1,13 +1,14 @@
-package com.minitb.service.rulechain;
+package com.minitb.dao.rulechain.impl;
 
+import com.minitb.dao.rulechain.RuleChainService;
 import com.minitb.dao.RuleChainDao;
 import com.minitb.domain.rule.RuleChain;
 import com.minitb.domain.rule.RuleChainId;
 import com.minitb.domain.rule.node.RuleNode;
 import com.minitb.domain.entity.RuleNodeId;
-import com.minitb.service.AbstractEntityService;
-import com.minitb.service.MiniTbException;
-import com.minitb.service.MiniTbErrorCode;
+import com.minitb.dao.common.AbstractEntityService;
+import com.minitb.dao.common.exception.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

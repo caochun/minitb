@@ -1,9 +1,9 @@
-package com.minitb.service.relation;
+package com.minitb.dao.relation;
 
 import com.minitb.domain.relation.EntityRelation;
 import com.minitb.domain.relation.RelationTypeGroup;
 import com.minitb.domain.entity.EntityId;
-import com.minitb.service.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;
 

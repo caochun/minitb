@@ -1,9 +1,9 @@
-package com.minitb.service.device;
+package com.minitb.dao.device;
 
 import com.minitb.domain.entity.Device;
 import com.minitb.domain.entity.DeviceId;
 import com.minitb.domain.entity.DeviceProfileId;
-import com.minitb.service.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;
 import java.util.Optional;

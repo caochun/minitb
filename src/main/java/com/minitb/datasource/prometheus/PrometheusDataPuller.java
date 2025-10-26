@@ -6,7 +6,7 @@ import com.google.gson.JsonParser;
 import com.minitb.domain.entity.DeviceProfile;
 import com.minitb.domain.entity.DeviceProfileId;
 import com.minitb.domain.entity.TelemetryDefinition;
-import com.minitb.service.deviceprofile.DeviceProfileService;
+import com.minitb.dao.deviceprofile.DeviceProfileService;
 import com.minitb.transport.service.TransportService;
 import lombok.extern.slf4j.Slf4j;
 

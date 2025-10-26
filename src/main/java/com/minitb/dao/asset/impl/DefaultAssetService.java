@@ -1,11 +1,12 @@
-package com.minitb.service.asset;
+package com.minitb.dao.asset.impl;
 
+import com.minitb.dao.asset.AssetService;
 import com.minitb.dao.AssetDao;
 import com.minitb.domain.entity.Asset;
 import com.minitb.domain.entity.AssetId;
-import com.minitb.service.AbstractEntityService;
-import com.minitb.service.MiniTbException;
-import com.minitb.service.MiniTbErrorCode;
+import com.minitb.dao.common.AbstractEntityService;
+import com.minitb.dao.common.exception.MiniTbException;
+import com.minitb.dao.common.exception.MiniTbErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
