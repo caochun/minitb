@@ -4,6 +4,7 @@ import com.minitb.actor.MiniTbActorSystem;
 import com.minitb.domain.device.*;
 import com.minitb.domain.asset.Asset;
 import com.minitb.domain.id.*;
+import com.minitb.web.MiniTBWebServer;
 import com.minitb.domain.telemetry.DataType;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.relation.EntityRelation;
@@ -121,12 +122,17 @@ public class MiniTBApplication {
             log.info("传输服务已设置 Actor 系统");
             
             // 8. 启动MQTT服务器
-            log.info("\n[8/9] 启动MQTT服务器...");
+            log.info("\n[8/10] 启动MQTT服务器...");
             MqttTransportService mqttService = new MqttTransportService(1883, transportService);
             mqttService.start();
             
-            // 9. 启动Prometheus数据拉取器（使用 DeviceProfile 配置）
-            log.info("\n[9/9] 启动Prometheus数据拉取器（基于 DeviceProfile）...");
+            // 9. 启动 HTTP API 服务器
+            log.info("\n[9/10] 启动 HTTP API 服务器...");
+            MiniTBWebServer webServer = new MiniTBWebServer(8080, deviceService);
+            webServer.start();
+            
+            // 10. 启动Prometheus数据拉取器（使用 DeviceProfile 配置）
+            log.info("\n[10/10] 启动Prometheus数据拉取器（基于 DeviceProfile）...");
             String prometheusUrl = System.getenv("PROMETHEUS_URL");
             if (prometheusUrl == null || prometheusUrl.isEmpty()) {
                 prometheusUrl = "http://localhost:9090";
@@ -159,7 +165,17 @@ public class MiniTBApplication {
             int pullInterval = 10;
             promPuller.start(pullInterval);
             
-            log.info("Prometheus数据拉取器已启动:");
+            log.info("========================================");
+            log.info("   MiniTB 启动完成!");
+            log.info("========================================");
+            log.info("\nHTTP API服务:");
+            log.info("  - 地址: http://localhost:8080");
+            log.info("  - 健康检查: GET http://localhost:8080/api/health");
+            log.info("  - 设备列表: GET http://localhost:8080/api/devices");
+            log.info("  - 创建设备: POST http://localhost:8080/api/devices");
+            log.info("\nMQTT服务:");
+            log.info("  - 地址: localhost:1883");
+            log.info("\nPrometheus数据拉取器:");
             log.info("  - 目标地址: {}", prometheusUrl);
             log.info("  - 拉取间隔: {}秒", pullInterval);
             log.info("");

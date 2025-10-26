@@ -5,8 +5,6 @@ import com.minitb.dao.common.exception.MiniTbException;
 import com.minitb.dao.common.exception.MiniTbErrorCode;
 import com.minitb.domain.id.UUIDBased;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
@@ -16,8 +14,6 @@ import java.util.Optional;
  */
 @Slf4j
 public abstract class AbstractEntityService {
-    
-    protected static final Logger log = LoggerFactory.getLogger(AbstractEntityService.class);
 
     /**
      * 检查对象是否为空，为空则抛出异常

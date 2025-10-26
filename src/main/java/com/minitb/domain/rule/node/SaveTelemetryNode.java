@@ -46,6 +46,7 @@ public class SaveTelemetryNode implements RuleNode {
     }
 
     @Override
+    @SuppressWarnings("deprecation")  // 兼容模式使用了废弃的API
     public void onMsg(TbMsg msg, RuleNodeContext context) {
         try {
             // 优先使用强类型数据
