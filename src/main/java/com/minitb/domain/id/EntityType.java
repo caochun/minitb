@@ -1,4 +1,4 @@
-package com.minitb.domain.entity;
+package com.minitb.domain.id;
 
 /**
  * 实体类型枚举

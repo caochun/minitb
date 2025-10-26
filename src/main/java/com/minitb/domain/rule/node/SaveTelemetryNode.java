@@ -1,7 +1,7 @@
 package com.minitb.domain.rule.node;
 
-import com.minitb.domain.msg.TbMsg;
-import com.minitb.domain.entity.RuleNodeId;
+import com.minitb.domain.messaging.TbMsg;
+import com.minitb.domain.id.RuleNodeId;
 import com.minitb.storage.TelemetryStorage;
 import lombok.extern.slf4j.Slf4j;
 

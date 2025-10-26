@@ -1,7 +1,5 @@
-package com.minitb.domain.rule;
+package com.minitb.domain.id;
 
-import com.minitb.domain.entity.UUIDBased;
-import com.minitb.domain.entity.EntityType;
 import java.util.UUID;
 
 /**

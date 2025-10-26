@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
-import com.minitb.domain.entity.Device;
-import com.minitb.domain.entity.DeviceId;
+import com.minitb.domain.device.Device;
+import com.minitb.domain.id.DeviceId;
 
 import java.util.List;
 import java.util.Optional;

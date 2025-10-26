@@ -1,27 +1,27 @@
-package com.minitb.domain.ts;
+package com.minitb.domain.telemetry;
 
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 字符串类型数据条目
+ * 布尔类型数据条目
  */
-public class StringDataEntry extends BasicKvEntry {
+public class BooleanDataEntry extends BasicKvEntry {
 
-    private final String value;
+    private final Boolean value;
 
-    public StringDataEntry(String key, String value) {
+    public BooleanDataEntry(String key, Boolean value) {
         super(key);
         this.value = value;
     }
 
     @Override
     public DataType getDataType() {
-        return DataType.STRING;
+        return DataType.BOOLEAN;
     }
 
     @Override
-    public Optional<String> getStrValue() {
+    public Optional<Boolean> getBooleanValue() {
         return Optional.ofNullable(value);
     }
 
@@ -32,15 +32,15 @@ public class StringDataEntry extends BasicKvEntry {
 
     @Override
     public String getValueAsString() {
-        return value;
+        return value != null ? Boolean.toString(value) : "null";
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof StringDataEntry)) return false;
+        if (!(o instanceof BooleanDataEntry)) return false;
         if (!super.equals(o)) return false;
-        StringDataEntry that = (StringDataEntry) o;
+        BooleanDataEntry that = (BooleanDataEntry) o;
         return Objects.equals(value, that.value);
     }
 
@@ -51,9 +51,9 @@ public class StringDataEntry extends BasicKvEntry {
 
     @Override
     public String toString() {
-        return "StringDataEntry{" +
+        return "BooleanDataEntry{" +
                 "key='" + getKey() + '\'' +
-                ", value='" + value + '\'' +
+                ", value=" + value +
                 '}';
     }
 }

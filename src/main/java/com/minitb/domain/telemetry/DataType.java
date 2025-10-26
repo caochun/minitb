@@ -1,4 +1,4 @@
-package com.minitb.domain.ts;
+package com.minitb.domain.telemetry;
 
 /**
  * 数据类型枚举

@@ -1,4 +1,4 @@
-package com.minitb.domain.msg;
+package com.minitb.domain.messaging;
 
 /**
  * 业务消息类型枚举

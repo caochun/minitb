@@ -1,5 +1,8 @@
-package com.minitb.domain.entity;
+package com.minitb.domain.device;
 
+import com.minitb.domain.id.DeviceProfileId;
+import com.minitb.domain.telemetry.DataType;
+import com.minitb.domain.protocol.PrometheusConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

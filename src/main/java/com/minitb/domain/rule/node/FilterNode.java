@@ -2,10 +2,10 @@ package com.minitb.domain.rule.node;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.minitb.domain.ts.DataType;
-import com.minitb.domain.ts.TsKvEntry;
-import com.minitb.domain.msg.TbMsg;
-import com.minitb.domain.entity.RuleNodeId;
+import com.minitb.domain.telemetry.DataType;
+import com.minitb.domain.telemetry.TsKvEntry;
+import com.minitb.domain.messaging.TbMsg;
+import com.minitb.domain.id.RuleNodeId;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;

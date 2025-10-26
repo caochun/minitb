@@ -4,7 +4,7 @@ import com.minitb.dao.EntityRelationDao;
 import com.minitb.dao.entity.EntityRelationEntity;
 import com.minitb.domain.relation.EntityRelation;
 import com.minitb.domain.relation.RelationTypeGroup;
-import com.minitb.domain.entity.EntityId;
+import com.minitb.domain.id.EntityId;
 import com.minitb.dao.common.exception.MiniTbException;
 import com.minitb.dao.common.exception.MiniTbErrorCode;
 

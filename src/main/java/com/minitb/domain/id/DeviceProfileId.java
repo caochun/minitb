@@ -1,4 +1,4 @@
-package com.minitb.domain.entity;
+package com.minitb.domain.id;
 
 import java.util.UUID;
 

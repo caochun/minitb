@@ -1,5 +1,6 @@
-package com.minitb.domain.entity;
+package com.minitb.domain.asset;
 
+import com.minitb.domain.id.AssetId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

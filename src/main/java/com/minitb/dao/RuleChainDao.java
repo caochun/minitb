@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
 import com.minitb.domain.rule.RuleChain;
-import com.minitb.domain.rule.RuleChainId;
+import com.minitb.domain.id.RuleChainId;
 
 import java.util.List;
 import java.util.Optional;

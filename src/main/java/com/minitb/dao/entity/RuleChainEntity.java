@@ -1,7 +1,7 @@
 package com.minitb.dao.entity;
 
 import com.minitb.domain.rule.RuleChain;
-import com.minitb.domain.rule.RuleChainId;
+import com.minitb.domain.id.RuleChainId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

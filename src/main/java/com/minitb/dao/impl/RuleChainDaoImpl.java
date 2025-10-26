@@ -3,7 +3,7 @@ package com.minitb.dao.impl;
 import com.minitb.dao.BaseDaoImpl;
 import com.minitb.dao.RuleChainDao;
 import com.minitb.domain.rule.RuleChain;
-import com.minitb.domain.rule.RuleChainId;
+import com.minitb.domain.id.RuleChainId;
 import com.minitb.dao.entity.RuleChainEntity;
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,7 +1,7 @@
 package com.minitb.dao.asset;
 
-import com.minitb.domain.entity.Asset;
-import com.minitb.domain.entity.AssetId;
+import com.minitb.domain.asset.Asset;
+import com.minitb.domain.id.AssetId;
 import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.minitb.ruleengine;
 
-import com.minitb.domain.msg.TbMsg;
-import com.minitb.domain.msg.TbMsgType;
+import com.minitb.domain.messaging.TbMsg;
+import com.minitb.domain.messaging.TbMsgType;
 import com.minitb.domain.rule.RuleChain;
 import lombok.extern.slf4j.Slf4j;
 

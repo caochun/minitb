@@ -1,7 +1,7 @@
-package com.minitb.domain.msg;
+package com.minitb.domain.messaging;
 
-import com.minitb.domain.entity.DeviceId;
-import com.minitb.domain.ts.TsKvEntry;
+import com.minitb.domain.id.DeviceId;
+import com.minitb.domain.telemetry.TsKvEntry;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

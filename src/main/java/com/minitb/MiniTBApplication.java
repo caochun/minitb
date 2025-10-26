@@ -1,8 +1,10 @@
 package com.minitb;
 
 import com.minitb.actor.MiniTbActorSystem;
-import com.minitb.domain.entity.*;
-import com.minitb.domain.ts.DataType;
+import com.minitb.domain.device.*;
+import com.minitb.domain.asset.Asset;
+import com.minitb.domain.id.*;
+import com.minitb.domain.telemetry.DataType;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.relation.EntityRelation;
 import com.minitb.dao.relation.EntityRelationService;

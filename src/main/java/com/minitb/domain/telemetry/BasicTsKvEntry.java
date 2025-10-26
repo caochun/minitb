@@ -1,4 +1,4 @@
-package com.minitb.domain.ts;
+package com.minitb.domain.telemetry;
 
 import lombok.Data;
 

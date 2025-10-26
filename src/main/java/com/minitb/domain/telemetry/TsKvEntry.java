@@ -1,4 +1,4 @@
-package com.minitb.domain.ts;
+package com.minitb.domain.telemetry;
 
 /**
  * 时间序列键值对条目接口

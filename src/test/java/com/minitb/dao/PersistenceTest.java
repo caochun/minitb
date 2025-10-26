@@ -1,7 +1,7 @@
 package com.minitb.dao;
 
 import com.minitb.domain.entity.*;
-import com.minitb.domain.ts.DataType;
+import com.minitb.domain.telemetry.DataType;
 import com.minitb.domain.relation.EntityRelation;
 import com.minitb.domain.relation.RelationTypeGroup;
 import lombok.extern.slf4j.Slf4j;

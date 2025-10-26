@@ -2,8 +2,8 @@ package com.minitb.dao.impl;
 
 import com.minitb.dao.BaseDaoImpl;
 import com.minitb.dao.DeviceProfileDao;
-import com.minitb.domain.entity.DeviceProfile;
-import com.minitb.domain.entity.DeviceProfileId;
+import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.id.DeviceProfileId;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;

@@ -1,8 +1,8 @@
 package com.minitb.domain.rule;
 
-import com.minitb.domain.rule.RuleChainId;
-import com.minitb.domain.entity.RuleNodeId;
-import com.minitb.domain.msg.TbMsg;
+import com.minitb.domain.id.RuleChainId;
+import com.minitb.domain.id.RuleNodeId;
+import com.minitb.domain.messaging.TbMsg;
 import com.minitb.domain.rule.node.RuleNode;
 import com.minitb.domain.rule.node.RuleNodeContext;
 import com.minitb.domain.rule.node.DefaultRuleNodeContext;

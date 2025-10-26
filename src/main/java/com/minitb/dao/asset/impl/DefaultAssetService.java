@@ -2,8 +2,8 @@ package com.minitb.dao.asset.impl;
 
 import com.minitb.dao.asset.AssetService;
 import com.minitb.dao.AssetDao;
-import com.minitb.domain.entity.Asset;
-import com.minitb.domain.entity.AssetId;
+import com.minitb.domain.asset.Asset;
+import com.minitb.domain.id.AssetId;
 import com.minitb.dao.common.AbstractEntityService;
 import com.minitb.dao.common.exception.MiniTbException;
 import com.minitb.dao.common.exception.MiniTbErrorCode;
