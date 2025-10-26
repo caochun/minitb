@@ -137,8 +137,8 @@ class PrometheusEndToEndFlowTest {
         System.out.println("  ✅ 数据拉取完成");
         System.out.println();
         
-        // 等待异步处理
-        Thread.sleep(3000);
+        // 等待异步处理（实际只需 ~100ms）
+        Thread.sleep(100);
         
         // ========== 第 3 层：TransportService 处理 ==========
         System.out.println("📨 第 3 层: TransportService");
@@ -235,8 +235,8 @@ class PrometheusEndToEndFlowTest {
         System.out.println("🔄 PrometheusDataPuller 拉取 3 个指标...");
         prometheusDataPuller.pullAllPrometheusDevices();
         
-        // 等待处理
-        Thread.sleep(3000);
+        // 等待处理（实际只需 ~100ms）
+        Thread.sleep(100);
         
         long afterProcess = System.currentTimeMillis();
         
@@ -305,9 +305,9 @@ class PrometheusEndToEndFlowTest {
         System.out.println("  步骤 9: → TelemetryStorage.save()");
         System.out.println();
         
-        // 等待异步处理完成
-        System.out.println("⏳ 等待 Actor 异步处理 (3秒)...");
-        Thread.sleep(3000);
+        // 等待异步处理完成（实际只需 ~100ms）
+        System.out.println("⏳ 等待 Actor 异步处理 (~100ms)...");
+        Thread.sleep(100);
         
         long afterPull = System.currentTimeMillis();
         
@@ -368,7 +368,7 @@ class PrometheusEndToEndFlowTest {
         // 拉取数据
         System.out.println("🔄 拉取数据并通过规则链...");
         prometheusDataPuller.pullAllPrometheusDevices();
-        Thread.sleep(3000);
+        Thread.sleep(100);  // 实际只需 ~100ms
         
         long afterPull = System.currentTimeMillis();
         
@@ -444,7 +444,7 @@ class PrometheusEndToEndFlowTest {
         // 执行拉取并验证
         long beforePull = System.currentTimeMillis();
         prometheusDataPuller.pullAllPrometheusDevices();
-        Thread.sleep(3000);
+        Thread.sleep(100);  // 实际只需 ~100ms
         long afterPull = System.currentTimeMillis();
         
         // 验证数据确实关联到了正确的设备
