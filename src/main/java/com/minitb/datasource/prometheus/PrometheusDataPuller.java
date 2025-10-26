@@ -9,7 +9,7 @@ import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.protocol.PrometheusConfig;
-import com.minitb.transport.service.TransportService;
+import com.minitb.infrastructure.transport.service.TransportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

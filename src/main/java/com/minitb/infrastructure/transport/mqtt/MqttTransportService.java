@@ -1,6 +1,6 @@
-package com.minitb.transport.mqtt;
+package com.minitb.infrastructure.transport.mqtt;
 
-import com.minitb.transport.service.TransportService;
+import com.minitb.infrastructure.transport.service.TransportService;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;

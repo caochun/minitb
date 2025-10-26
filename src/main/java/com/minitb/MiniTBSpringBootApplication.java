@@ -1,8 +1,8 @@
 package com.minitb;
 
 import com.minitb.actor.MiniTbActorSystem;
-import com.minitb.transport.mqtt.MqttTransportService;
-import com.minitb.transport.service.TransportService;
+import com.minitb.infrastructure.transport.mqtt.MqttTransportService;
+import com.minitb.infrastructure.transport.service.TransportService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;

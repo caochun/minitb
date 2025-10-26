@@ -439,6 +439,12 @@ minitb/
 │   │   │       ├── SpringDataDeviceRepository.java  # Spring Data JPA
 │   │   │       ├── JpaDeviceRepositoryAdapter.java  # 仓储适配器
 │   │   │       └── ...
+│   │   ├── transport/                    # 传输适配器（输入适配器）
+│   │   │   ├── service/
+│   │   │   │   └── TransportService.java # 传输服务
+│   │   │   └── mqtt/
+│   │   │       ├── MqttTransportService.java
+│   │   │       └── MqttTransportHandler.java
 │   │   └── rule/                         # 规则节点实现
 │   │       ├── LogNode.java
 │   │       ├── FilterNode.java
@@ -456,12 +462,6 @@ minitb/
 │   │   └── msg/
 │   │       ├── TransportToDeviceMsg.java
 │   │       └── ToRuleEngineMsg.java
-│   ├── transport/                        # 传输层
-│   │   ├── mqtt/
-│   │   │   ├── MqttTransportService.java
-│   │   │   └── MqttTransportHandler.java
-│   │   └── service/
-│   │       └── TransportService.java
 │   ├── datasource/                       # 数据源
 │   │   └── prometheus/
 │   │       ├── PrometheusDataPuller.java

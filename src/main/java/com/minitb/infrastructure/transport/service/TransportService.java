@@ -1,4 +1,4 @@
-package com.minitb.transport.service;
+package com.minitb.infrastructure.transport.service;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

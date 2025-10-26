@@ -7,8 +7,8 @@ import com.minitb.infrastructure.rule.FilterNode;
 import com.minitb.infrastructure.rule.LogNode;
 import com.minitb.infrastructure.rule.SaveTelemetryNode;
 import com.minitb.storage.TelemetryStorage;
-import com.minitb.transport.mqtt.MqttTransportService;
-import com.minitb.transport.service.TransportService;
+import com.minitb.infrastructure.transport.mqtt.MqttTransportService;
+import com.minitb.infrastructure.transport.service.TransportService;
 import lombok.extern.slf4j.Slf4j;
 
 /**

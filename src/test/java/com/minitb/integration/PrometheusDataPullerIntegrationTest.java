@@ -63,7 +63,7 @@ class PrometheusDataPullerIntegrationTest {
     private TelemetryStorage telemetryStorage;
     
     @Autowired
-    private com.minitb.transport.service.TransportService transportService;
+    private com.minitb.infrastructure.transport.service.TransportService transportService;
     
     @Autowired
     private com.minitb.actor.MiniTbActorSystem actorSystem;

@@ -8,7 +8,7 @@ import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
 import com.minitb.domain.protocol.PrometheusConfig;
 import com.minitb.domain.telemetry.DataType;
-import com.minitb.transport.service.TransportService;
+import com.minitb.infrastructure.transport.service.TransportService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
