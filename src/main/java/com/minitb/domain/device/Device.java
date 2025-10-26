@@ -26,6 +26,25 @@ public class Device {
      * 定义了设备应该有哪些遥测数据
      */
     private DeviceProfileId deviceProfileId;
+    
+    /**
+     * Prometheus 标签映射（可选，仅 PROMETHEUS 类型设备使用）
+     * 
+     * 用于从 Prometheus 查询结果中识别此设备的数据
+     * 格式: "labelKey=labelValue"
+     * 
+     * 示例:
+     * - "instance=server-01:9100"
+     * - "job=node-exporter"
+     * - "node=kubernetes-node-1"
+     * 
+     * 工作原理:
+     * 1. PrometheusDataPuller 执行 PromQL 查询
+     * 2. 查询返回多个时间序列（每个都有标签）
+     * 3. 根据此字段过滤出属于当前设备的数据
+     * 4. 使用 accessToken 调用 processTelemetry() 关联设备
+     */
+    private String prometheusLabel;
 
     public Device(String name, String type, String accessToken) {
         this.id = DeviceId.random();

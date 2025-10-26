@@ -76,6 +76,19 @@ public class DeviceProfileEntity {
     private DeviceProfile.DataSourceType dataSourceType;
     
     /**
+     * Prometheus 端点 URL（可选，仅 PROMETHEUS 类型使用）
+     */
+    @Column(name = "prometheus_endpoint", length = 255)
+    private String prometheusEndpoint;
+    
+    /**
+     * Prometheus 设备标识标签键（可选，仅 PROMETHEUS 类型使用）
+     * 例如: "instance", "job", "node"
+     */
+    @Column(name = "prometheus_device_label_key", length = 100)
+    private String prometheusDeviceLabelKey;
+    
+    /**
      * 创建时间
      */
     @Column(name = "created_time", nullable = false)
@@ -91,6 +104,8 @@ public class DeviceProfileEntity {
                 .description(profile.getDescription())
                 .strictMode(profile.isStrictMode())
                 .dataSourceType(profile.getDataSourceType())
+                .prometheusEndpoint(profile.getPrometheusEndpoint())
+                .prometheusDeviceLabelKey(profile.getPrometheusDeviceLabelKey())
                 .createdTime(profile.getCreatedTime());
         
         // 序列化 TelemetryDefinitions 为 JSON
@@ -119,6 +134,8 @@ public class DeviceProfileEntity {
                 .description(description)
                 .strictMode(strictMode)
                 .dataSourceType(dataSourceType)
+                .prometheusEndpoint(prometheusEndpoint)
+                .prometheusDeviceLabelKey(prometheusDeviceLabelKey)
                 .createdTime(createdTime);
         
         // 反序列化 JSON 为 TelemetryDefinitions

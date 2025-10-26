@@ -62,6 +62,14 @@ public class DeviceEntity {
     private UUID deviceProfileId;
     
     /**
+     * Prometheus 标签映射（可选）
+     * 格式: "labelKey=labelValue"
+     * 例如: "instance=server-01:9100"
+     */
+    @Column(name = "prometheus_label", length = 255)
+    private String prometheusLabel;
+    
+    /**
      * 创建时间
      */
     @Column(name = "created_time", nullable = false)
@@ -78,6 +86,7 @@ public class DeviceEntity {
                 .accessToken(device.getAccessToken())
                 .deviceProfileId(device.getDeviceProfileId() != null ? 
                         device.getDeviceProfileId().getId() : null)
+                .prometheusLabel(device.getPrometheusLabel())
                 .createdTime(device.getCreatedTime())
                 .build();
     }
@@ -93,6 +102,7 @@ public class DeviceEntity {
                 .accessToken(accessToken)
                 .deviceProfileId(deviceProfileId != null ? 
                         new DeviceProfileId(deviceProfileId) : null)
+                .prometheusLabel(prometheusLabel)
                 .createdTime(createdTime)
                 .build();
     }

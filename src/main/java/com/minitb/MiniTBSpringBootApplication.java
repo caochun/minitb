@@ -8,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * MiniTB Spring Boot 主启动类
@@ -16,8 +17,10 @@ import org.springframework.context.annotation.Bean;
  * - 启动 Spring Boot 应用
  * - 启动 MQTT 传输服务
  * - 集成 Actor 系统
+ * - 启用定时任务（Prometheus 数据拉取）
  */
 @SpringBootApplication
+@EnableScheduling  // ← 启用定时任务
 @Slf4j
 public class MiniTBSpringBootApplication {
     
