@@ -6,6 +6,8 @@ import com.minitb.domain.relation.EntityRelation;
 import com.minitb.domain.relation.RelationTypeGroup;
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.SQLException;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -27,12 +29,13 @@ public class PersistenceTest {
             DatabaseManager.initDatabase();
             log.info("✅ 数据库初始化完成\n");
             
-            // 2. 创建 DAO
+            // 2. 创建 DAO（使用 DaoFactory）
             log.info("2️⃣  创建 DAO 对象...");
-            DeviceProfileDao profileDao = new DeviceProfileDao();
-            DeviceDao deviceDao = new DeviceDao();
-            AssetDao assetDao = new AssetDao();
-            EntityRelationDao relationDao = new EntityRelationDao();
+            DaoFactory daoFactory = new DaoFactory(DatabaseManager.getConnection());
+            DeviceProfileDao profileDao = daoFactory.getDeviceProfileDao();
+            DeviceDao deviceDao = daoFactory.getDeviceDao();
+            AssetDao assetDao = daoFactory.getAssetDao();
+            EntityRelationDao relationDao = daoFactory.getEntityRelationDao();
             log.info("✅ DAO 创建完成\n");
             
             // 3. 测试 DeviceProfile 持久化
@@ -115,11 +118,11 @@ public class PersistenceTest {
                 RelationTypeGroup.COMMON
             );
             
-            relationDao.save(relation);
+            relationDao.saveRelation(relation);
             log.info("✅ 保存关系: {} -> {}", building.getName(), room.getName());
             
-            List<EntityRelation> relations = relationDao.findByFrom(
-                building.getId().getId(), RelationTypeGroup.COMMON
+            List<EntityRelation> relations = relationDao.findAllByFrom(
+                building.getId(), RelationTypeGroup.COMMON
             );
             log.info("✅ 查询出边关系: {} 个", relations.size());
             log.info("");
