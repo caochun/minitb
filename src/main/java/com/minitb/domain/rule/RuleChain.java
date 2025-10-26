@@ -2,10 +2,8 @@ package com.minitb.domain.rule;
 
 import com.minitb.domain.id.RuleChainId;
 import com.minitb.domain.id.RuleNodeId;
-import com.minitb.domain.messaging.TbMsg;
-import com.minitb.domain.rule.node.RuleNode;
-import com.minitb.domain.rule.node.RuleNodeContext;
-import com.minitb.domain.rule.node.DefaultRuleNodeContext;
+import com.minitb.domain.messaging.Message;
+import com.minitb.infrastructure.rule.DefaultRuleNodeContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -47,7 +45,7 @@ public class RuleChain {
     /**
      * 处理消息 - 从第一个节点开始，通过责任链传递
      */
-    public void process(TbMsg msg) {
+    public void process(Message msg) {
         log.debug("规则链 [{}] 开始处理消息: {}", name, msg.getId());
         
         if (nodes.isEmpty()) {
@@ -178,7 +176,7 @@ public class RuleChain {
         
         // 开始处理消息
         try {
-            nodes.get(0).onMsg((TbMsg) msg, context);
+            nodes.get(0).onMsg((Message) msg, context);
         } catch (Exception e) {
             log.error("规则链 [{}] 处理消息失败", name, e);
         }

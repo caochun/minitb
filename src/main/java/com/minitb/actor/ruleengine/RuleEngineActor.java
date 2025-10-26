@@ -49,12 +49,12 @@ public class RuleEngineActor implements MiniTbActor {
      */
     private void onToRuleEngineMsg(ToRuleEngineMsg msg) {
         log.debug("规则引擎收到消息: deviceId={}, type={}", 
-                msg.getTbMsg().getOriginator(), 
-                msg.getTbMsg().getType());
+                msg.getMessage().getOriginator(), 
+                msg.getMessage().getType());
         
         try {
             // 通过规则链处理消息
-            ruleEngineService.processMessage(msg.getTbMsg());
+            ruleEngineService.processMessage(msg.getMessage());
         } catch (Exception e) {
             log.error("规则引擎处理消息失败", e);
         }

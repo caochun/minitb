@@ -7,23 +7,25 @@ import com.minitb.actor.MiniTbActorSystem;
 import com.minitb.actor.device.DeviceActor;
 import com.minitb.actor.msg.TransportToDeviceMsg;
 import com.minitb.actor.ruleengine.RuleEngineActor;
+import com.minitb.application.service.DeviceService;
 import com.minitb.domain.device.Device;
+import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.telemetry.*;
-import com.minitb.domain.messaging.TbMsg;
-import com.minitb.domain.messaging.TbMsgType;
+import com.minitb.domain.messaging.Message;
+import com.minitb.domain.messaging.MessageType;
 import com.minitb.ruleengine.RuleEngineService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 传输服务 - 核心数据流的第二层
  * 职责：
- * 1. 设备认证
+ * 1. 设备认证（通过 DeviceService）
  * 2. 消息转换（JSON -> Actor 消息）
  * 3. 限流检查
  * 4. 通过 Actor 系统异步转发
@@ -33,11 +35,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * - 消息通过 Actor 系统异步传递
  * - 自动队列缓冲和背压保护
  */
+@Component
 @Slf4j
 public class TransportService {
     
-    // 设备注册表（简化实现，实际应该查数据库）
-    private final Map<String, Device> deviceRegistry = new ConcurrentHashMap<>();
+    // 设备服务（替代原来的 ConcurrentHashMap）
+    private final DeviceService deviceService;
     
     // 规则引擎服务
     private final RuleEngineService ruleEngineService;
@@ -45,9 +48,9 @@ public class TransportService {
     // Actor 系统
     private MiniTbActorSystem actorSystem;
     
-    public TransportService(RuleEngineService ruleEngineService) {
+    public TransportService(DeviceService deviceService, RuleEngineService ruleEngineService) {
+        this.deviceService = deviceService;
         this.ruleEngineService = ruleEngineService;
-        initDefaultDevices();
     }
     
     /**
@@ -63,46 +66,12 @@ public class TransportService {
         actorSystem.createActor("RuleEngineActor", ruleEngineActor);
         log.info("规则引擎 Actor 已创建");
         
-        // 为已注册的设备创建 DeviceActor
-        for (Device device : deviceRegistry.values()) {
+        // 为数据库中的所有设备创建 DeviceActor
+        List<Device> devices = deviceService.findAll();
+        for (Device device : devices) {
             createDeviceActor(device);
         }
-    }
-
-    /**
-     * 初始化默认测试设备
-     */
-    private void initDefaultDevices() {
-        // MQTT设备
-        Device device1 = new Device("温度传感器-01", "TemperatureSensor", "test-token-001");
-        Device device2 = new Device("湿度传感器-01", "HumiditySensor", "test-token-002");
-        
-        deviceRegistry.put(device1.getAccessToken(), device1);
-        deviceRegistry.put(device2.getAccessToken(), device2);
-        
-        // Prometheus 数据源设备1: Prometheus 自身进程
-        Device promDevice = new Device("Prometheus进程监控", "PrometheusMonitor", "test-token-prom");
-        deviceRegistry.put(promDevice.getAccessToken(), promDevice);
-        
-        // Prometheus 数据源设备2: node_exporter 系统监控
-        Device nodeDevice = new Device("系统资源监控", "NodeExporter", "test-token-node");
-        deviceRegistry.put(nodeDevice.getAccessToken(), nodeDevice);
-        
-        log.info("初始化默认设备: {}, {}, {}, {}", 
-                 device1.getName(), device2.getName(), promDevice.getName(), nodeDevice.getName());
-    }
-
-    /**
-     * 注册新设备
-     */
-    public void registerDevice(Device device) {
-        deviceRegistry.put(device.getAccessToken(), device);
-        log.info("设备注册成功: {} (token: {})", device.getName(), device.getAccessToken());
-        
-        // 如果 Actor 系统已设置，创建 DeviceActor
-        if (actorSystem != null) {
-            createDeviceActor(device);
-        }
+        log.info("为 {} 个设备创建了 DeviceActor", devices.size());
     }
     
     /**
@@ -116,7 +85,7 @@ public class TransportService {
         
         DeviceActor deviceActor = new DeviceActor(device.getId(), device);
         actorSystem.createActor(deviceActor.getActorId(), deviceActor);
-        log.info("为设备 {} 创建 DeviceActor: {}", device.getName(), deviceActor.getActorId());
+        log.debug("为设备 {} 创建 DeviceActor: {}", device.getName(), deviceActor.getActorId());
     }
 
     /**
@@ -152,8 +121,8 @@ public class TransportService {
             System.currentTimeMillis()
         );
         
-        DeviceActor deviceActor = new DeviceActor(device.getId(), device);
-        String actorId = deviceActor.getActorId();
+        // 使用 DeviceActor 的静态方法获取 Actor ID
+        String actorId = DeviceActor.actorIdFor(device.getId());
         
         log.debug("通过 Actor 系统发送消息: deviceId={}, actorId={}", device.getId(), actorId);
         actorSystem.tell(actorId, actorMsg);
@@ -181,8 +150,8 @@ public class TransportService {
         }
         
         Map<String, String> metaData = createMetaData(device);
-        TbMsg tbMsg = TbMsg.newMsg(
-            TbMsgType.POST_ATTRIBUTES_REQUEST,
+        Message tbMsg = Message.newMsg(
+            MessageType.POST_ATTRIBUTES_REQUEST,
             device.getId(),
             metaData,
             attributesJson,
@@ -197,13 +166,15 @@ public class TransportService {
      * 设备认证
      */
     private Device authenticateDevice(String accessToken) {
-        Device device = deviceRegistry.get(accessToken);
-        if (device != null) {
-            log.debug("设备认证成功: {}", device.getName());
-        } else {
-            log.warn("设备认证失败: token={}", accessToken);
-        }
-        return device;
+        return deviceService.findByAccessToken(accessToken)
+                .map(device -> {
+                    log.debug("设备认证成功: {}", device.getName());
+                    return device;
+                })
+                .orElseGet(() -> {
+                    log.warn("设备认证失败: token={}", accessToken);
+                    return null;
+                });
     }
 
     /**
@@ -289,10 +260,10 @@ public class TransportService {
     }
 
     /**
-     * 获取已注册设备列表
+     * 获取所有设备
      */
-    public Map<String, Device> getDeviceRegistry() {
-        return new HashMap<>(deviceRegistry);
+    public List<Device> getAllDevices() {
+        return deviceService.findAll();
     }
 }
 

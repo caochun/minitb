@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: minitb
+  
+  # 数据源配置（H2 内存数据库）
+  datasource:
+    url: jdbc:h2:mem:minitb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  # JPA 配置
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop  # 开发环境：每次启动重建表
+    show-sql: false          # 不显示 SQL（避免日志过多）
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: false
+  
+  # H2 控制台（可选，用于调试）
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.minitb: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+    io.netty: WARN
+
