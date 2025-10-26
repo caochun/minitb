@@ -48,6 +48,12 @@ public abstract class UUIDBased implements EntityId, Serializable {
         return id;
     }
     
+    /**
+     * 获取实体类型 - 子类必须实现
+     */
+    @Override
+    public abstract EntityType getEntityType();
+    
     @Override
     public int hashCode() {
         // 缓存hashCode，避免重复计算

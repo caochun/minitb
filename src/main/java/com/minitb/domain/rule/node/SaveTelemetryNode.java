@@ -1,6 +1,7 @@
 package com.minitb.domain.rule.node;
 
 import com.minitb.domain.msg.TbMsg;
+import com.minitb.domain.entity.RuleNodeId;
 import com.minitb.storage.TelemetryStorage;
 import lombok.extern.slf4j.Slf4j;
 
@@ -10,25 +11,42 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SaveTelemetryNode implements RuleNode {
     
+    private final RuleNodeId id;
     private final TelemetryStorage storage;
     private RuleNode next;
     
     public SaveTelemetryNode(TelemetryStorage storage) {
+        this.id = RuleNodeId.random();
         this.storage = storage;
     }
 
+    @Override
+    public RuleNodeId getId() {
+        return id;
+    }
+    
     @Override
     public String getName() {
         return "SaveTelemetryNode";
     }
     
     @Override
+    public String getNodeType() {
+        return "SAVE_TELEMETRY";
+    }
+    
+    @Override
     public void setNext(RuleNode next) {
         this.next = next;
     }
+    
+    @Override
+    public void init(RuleNodeConfig config, RuleNodeContext context) {
+        // SaveTelemetryNode不需要特殊初始化
+    }
 
     @Override
-    public void onMsg(TbMsg msg) {
+    public void onMsg(TbMsg msg, RuleNodeContext context) {
         try {
             // 优先使用强类型数据
             if (msg.hasTsKvEntries()) {
@@ -42,10 +60,10 @@ public class SaveTelemetryNode implements RuleNode {
                         getName(), msg.getOriginator(), msg.getTimestamp());
             }
             
-            // 传递给下一个节点
-            if (next != null) {
-                next.onMsg(msg);
-            }
+        // 传递给下一个节点
+        if (next != null) {
+            next.onMsg(msg, context);
+        }
             
         } catch (Exception e) {
             log.error("[{}] 保存遥测数据失败", getName(), e);

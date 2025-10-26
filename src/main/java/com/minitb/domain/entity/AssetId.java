@@ -42,4 +42,9 @@ public class AssetId extends UUIDBased {
     public static AssetId random() {
         return new AssetId(UUID.randomUUID());
     }
+    
+    @Override
+    public EntityType getEntityType() {
+        return EntityType.ASSET;
+    }
 }

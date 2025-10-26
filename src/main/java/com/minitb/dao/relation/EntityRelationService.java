@@ -1,4 +1,4 @@
-package com.minitb.dao;
+package com.minitb.dao.relation;
 
 import com.minitb.domain.relation.EntityRelation;
 import com.minitb.domain.relation.RelationTypeGroup;
@@ -6,14 +6,13 @@ import com.minitb.domain.entity.EntityId;
 import com.minitb.dao.common.exception.MiniTbException;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
- * 实体关系 DAO 接口
+ * 实体关系服务接口
  * 
- * 参考ThingsBoard的RelationDao设计
+ * 参考ThingsBoard的BaseRelationService设计
  */
-public interface EntityRelationDao {
+public interface EntityRelationService {
     
     /**
      * 保存关系 - 参考ThingsBoard的saveRelation

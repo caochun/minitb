@@ -90,8 +90,11 @@ public class DatabaseManager {
                     to_id TEXT NOT NULL,
                     to_type TEXT NOT NULL,
                     relation_type TEXT NOT NULL,
-                    type_group TEXT NOT NULL,
-                    PRIMARY KEY (from_id, from_type, to_id, to_type, relation_type, type_group)
+                    relation_type_group TEXT NOT NULL,
+                    version INTEGER DEFAULT 0,
+                    additional_info TEXT,
+                    created_time INTEGER NOT NULL,
+                    PRIMARY KEY (from_id, to_id, relation_type)
                 )
             """);
             

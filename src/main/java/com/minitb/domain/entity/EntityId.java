@@ -25,6 +25,11 @@ public interface EntityId extends Serializable {
     UUID getId();
     
     /**
+     * 获取实体类型
+     */
+    EntityType getEntityType();
+    
+    /**
      * 判断是否为空UUID
      */
     default boolean isNullUid() {

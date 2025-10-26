@@ -6,7 +6,7 @@ import com.google.gson.JsonParser;
 import com.minitb.domain.entity.DeviceProfile;
 import com.minitb.domain.entity.DeviceProfileId;
 import com.minitb.domain.entity.TelemetryDefinition;
-import com.minitb.service.DeviceProfileService;
+import com.minitb.dao.device.DeviceService;
 import com.minitb.transport.service.TransportService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +35,7 @@ public class PrometheusDataPuller {
     
     private final String prometheusUrl;
     private final TransportService transportService;
-    private final DeviceProfileService profileService;
+    private final DeviceService deviceService;
     private final ScheduledExecutorService scheduler;
     private final Map<String, DeviceMetricConfig> deviceConfigs;
     private final Map<String, DeviceProfileId> deviceProfileMap;  // deviceId -> profileId
@@ -43,10 +43,10 @@ public class PrometheusDataPuller {
     
     public PrometheusDataPuller(String prometheusUrl, 
                                 TransportService transportService,
-                                DeviceProfileService profileService) {
+                                DeviceService deviceService) {
         this.prometheusUrl = prometheusUrl;
         this.transportService = transportService;
-        this.profileService = profileService;
+        this.deviceService = deviceService;
         this.scheduler = Executors.newScheduledThreadPool(1);
         this.deviceConfigs = new ConcurrentHashMap<>();
         this.deviceProfileMap = new ConcurrentHashMap<>();
@@ -64,7 +64,7 @@ public class PrometheusDataPuller {
      * @param profileId DeviceProfile ID
      */
     public void registerDeviceWithProfile(String deviceId, String accessToken, DeviceProfileId profileId) {
-        Optional<DeviceProfile> profileOpt = profileService.findById(profileId);
+        Optional<DeviceProfile> profileOpt = deviceService.findProfileById(profileId);
         if (profileOpt.isEmpty()) {
             log.error("找不到配置文件: {}", profileId);
             return;

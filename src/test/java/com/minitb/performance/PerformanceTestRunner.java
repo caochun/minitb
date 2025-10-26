@@ -2,7 +2,7 @@ package com.minitb.performance;
 
 import com.minitb.actor.MiniTbActorSystem;
 import com.minitb.domain.entity.Device;
-import com.minitb.service.rule.RuleEngineService;
+import com.minitb.ruleengine.RuleEngineService;
 import com.minitb.domain.rule.RuleChain;
 import com.minitb.domain.rule.node.LogNode;
 import com.minitb.domain.rule.node.SaveTelemetryNode;

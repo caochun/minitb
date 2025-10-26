@@ -2,180 +2,85 @@ package com.minitb.dao;
 
 import com.minitb.domain.entity.Asset;
 import com.minitb.domain.entity.AssetId;
-import com.minitb.dao.entity.AssetEntity;
-import lombok.extern.slf4j.Slf4j;
 
-import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * 资产 DAO - SQLite 实现
+ * MiniTB资产DAO接口
+ * 定义资产相关的数据访问操作
  */
-@Slf4j
-public class AssetDao {
-    
-    private final Connection conn;
-    
-    public AssetDao() throws SQLException {
-        this.conn = DatabaseManager.getConnection();
-    }
+public interface AssetDao extends EntityDao<Asset, AssetId> {
     
     /**
-     * 保存资产
+     * 根据资产类型查找资产
      */
-    public Asset save(Asset asset) {
-        AssetEntity entity = AssetEntity.fromDomain(asset);
-        
-        String sql = """
-            INSERT INTO asset (id, name, type, label, created_time)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name,
-                type = excluded.type,
-                label = excluded.label
-        """;
-        
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, entity.getId());
-            ps.setString(2, entity.getName());
-            ps.setString(3, entity.getType());
-            ps.setString(4, entity.getLabel());
-            ps.setLong(5, entity.getCreatedTime());
-            
-            ps.executeUpdate();
-            log.debug("保存资产: {}", asset.getName());
-            return asset;
-            
-        } catch (SQLException e) {
-            log.error("保存资产失败: {}", asset.getName(), e);
-            throw new RuntimeException("保存资产失败", e);
-        }
-    }
+    List<Asset> findByType(String type);
     
     /**
-     * 根据 ID 查找资产
+     * 根据资产类型统计资产数量
      */
-    public Optional<Asset> findById(AssetId id) {
-        String sql = "SELECT * FROM asset WHERE id = ?";
-        
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id.toString());
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                AssetEntity entity = mapResultSetToEntity(rs);
-                return Optional.of(entity.toDomain());
-            }
-            
-            return Optional.empty();
-            
-        } catch (SQLException e) {
-            log.error("查询资产失败: {}", id, e);
-            return Optional.empty();
-        }
-    }
+    long countByType(String type);
     
     /**
-     * 查找所有资产
+     * 根据资产状态查找资产
      */
-    public List<Asset> findAll() {
-        List<Asset> assets = new ArrayList<>();
-        String sql = "SELECT * FROM asset ORDER BY created_time DESC";
-        
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            while (rs.next()) {
-                AssetEntity entity = mapResultSetToEntity(rs);
-                assets.add(entity.toDomain());
-            }
-            
-            log.debug("查询到 {} 个资产", assets.size());
-            return assets;
-            
-        } catch (SQLException e) {
-            log.error("查询所有资产失败", e);
-            return assets;
-        }
-    }
+    List<Asset> findByStatus(String status);
     
     /**
-     * 根据类型查找资产
+     * 根据资产状态统计资产数量
      */
-    public List<Asset> findByType(String type) {
-        List<Asset> assets = new ArrayList<>();
-        String sql = "SELECT * FROM asset WHERE type = ? ORDER BY created_time DESC";
-        
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, type);
-            ResultSet rs = ps.executeQuery();
-            
-            while (rs.next()) {
-                AssetEntity entity = mapResultSetToEntity(rs);
-                assets.add(entity.toDomain());
-            }
-            
-            log.debug("查询到 {} 个 {} 类型资产", assets.size(), type);
-            return assets;
-            
-        } catch (SQLException e) {
-            log.error("根据类型查询资产失败: {}", type, e);
-            return assets;
-        }
-    }
+    long countByStatus(String status);
     
     /**
-     * 删除资产
+     * 根据资产标签查找资产
      */
-    public boolean delete(AssetId id) {
-        String sql = "DELETE FROM asset WHERE id = ?";
-        
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id.toString());
-            int rows = ps.executeUpdate();
-            
-            log.debug("删除资产: {}, 影响行数: {}", id, rows);
-            return rows > 0;
-            
-        } catch (SQLException e) {
-            log.error("删除资产失败: {}", id, e);
-            return false;
-        }
-    }
+    List<Asset> findByLabel(String label);
     
     /**
-     * 统计资产数量
+     * 根据资产名称模糊查找
      */
-    public long count() {
-        String sql = "SELECT COUNT(*) FROM asset";
+    List<Asset> findByNameLike(String namePattern);
+    
+    /**
+     * 根据父资产ID查找子资产
+     */
+    List<Asset> findByParentAssetId(String parentAssetId);
+    
+    /**
+     * 根据父资产ID统计子资产数量
+     */
+    long countByParentAssetId(String parentAssetId);
+    
+    /**
+     * 获取资产统计信息
+     */
+    AssetStatistics getAssetStatistics();
+    
+    /**
+     * 资产统计信息
+     */
+    class AssetStatistics {
+        private final long totalCount;
+        private final long activeCount;
+        private final long inactiveCount;
+        private final long onlineCount;
+        private final long offlineCount;
         
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            if (rs.next()) {
-                return rs.getLong(1);
-            }
-            
-        } catch (SQLException e) {
-            log.error("统计资产数量失败", e);
+        public AssetStatistics(long totalCount, long activeCount, long inactiveCount, 
+                             long onlineCount, long offlineCount) {
+            this.totalCount = totalCount;
+            this.activeCount = activeCount;
+            this.inactiveCount = inactiveCount;
+            this.onlineCount = onlineCount;
+            this.offlineCount = offlineCount;
         }
         
-        return 0;
-    }
-    
-    /**
-     * ResultSet → AssetEntity 映射
-     */
-    private AssetEntity mapResultSetToEntity(ResultSet rs) throws SQLException {
-        return AssetEntity.builder()
-                .id(rs.getString("id"))
-                .name(rs.getString("name"))
-                .type(rs.getString("type"))
-                .label(rs.getString("label"))
-                .createdTime(rs.getLong("created_time"))
-                .build();
+        // Getters
+        public long getTotalCount() { return totalCount; }
+        public long getActiveCount() { return activeCount; }
+        public long getInactiveCount() { return inactiveCount; }
+        public long getOnlineCount() { return onlineCount; }
+        public long getOfflineCount() { return offlineCount; }
     }
 }
-

@@ -1,6 +1,7 @@
 package com.minitb.domain.rule.node;
 
 import com.minitb.domain.msg.TbMsg;
+import com.minitb.domain.entity.RuleNodeId;
 import com.minitb.performance.PerformanceMetrics;
 import com.minitb.storage.TelemetryStorage;
 import lombok.extern.slf4j.Slf4j;
@@ -14,11 +15,18 @@ public class PerformanceAwareSaveTelemetryNode implements RuleNode {
     
     private final TelemetryStorage storage;
     private final PerformanceMetrics metrics;
+    private final RuleNodeId id;
     private RuleNode next;
     
     public PerformanceAwareSaveTelemetryNode(TelemetryStorage storage, PerformanceMetrics metrics) {
         this.storage = storage;
         this.metrics = metrics;
+        this.id = RuleNodeId.random();
+    }
+
+    @Override
+    public RuleNodeId getId() {
+        return id;
     }
 
     @Override
@@ -27,12 +35,22 @@ public class PerformanceAwareSaveTelemetryNode implements RuleNode {
     }
     
     @Override
+    public String getNodeType() {
+        return "ACTION";
+    }
+    
+    @Override
     public void setNext(RuleNode next) {
         this.next = next;
     }
+    
+    @Override
+    public void init(RuleNodeConfig config, RuleNodeContext context) {
+        // 不需要初始化
+    }
 
     @Override
-    public void onMsg(TbMsg msg) {
+    public void onMsg(TbMsg msg, RuleNodeContext context) {
         long startTime = System.nanoTime();
         
         try {
@@ -65,7 +83,7 @@ public class PerformanceAwareSaveTelemetryNode implements RuleNode {
             
             // 传递给下一个节点
             if (next != null) {
-                next.onMsg(msg);
+                next.onMsg(msg, context);
             }
             
         } catch (Exception e) {

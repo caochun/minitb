@@ -42,4 +42,9 @@ public class DeviceId extends UUIDBased {
     public static DeviceId random() {
         return new DeviceId(UUID.randomUUID());
     }
+    
+    @Override
+    public EntityType getEntityType() {
+        return EntityType.DEVICE;
+    }
 }
