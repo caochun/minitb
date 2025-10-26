@@ -20,8 +20,8 @@ import com.minitb.ruleengine.RuleEngineService;
 import com.minitb.domain.rule.node.FilterNode;
 import com.minitb.domain.rule.node.LogNode;
 import com.minitb.domain.rule.node.SaveTelemetryNode;
-import com.minitb.dao.deviceprofile.DeviceProfileService;
-import com.minitb.dao.deviceprofile.impl.DefaultDeviceProfileService;
+import com.minitb.dao.device.DeviceService;
+import com.minitb.dao.device.impl.DefaultDeviceService;
 import com.minitb.storage.TelemetryStorage;
 import com.minitb.transport.mqtt.MqttTransportService;
 import com.minitb.transport.service.TransportService;
@@ -56,13 +56,13 @@ public class MiniTBApplication {
             Connection connection = DatabaseManager.getConnection();
             DaoFactory daoFactory = new DaoFactory(connection);
             
-            // 2. 初始化设备配置文件服务
-            log.info("\n[2/8] 初始化设备配置文件服务...");
-            DeviceProfileService profileService = new DefaultDeviceProfileService(daoFactory.getDeviceProfileDao());
+            // 2. 初始化设备服务（包含设备配置文件管理）
+            log.info("\n[2/8] 初始化设备服务...");
+            DeviceService deviceService = new DefaultDeviceService(daoFactory.getDeviceDao(), daoFactory.getDeviceProfileDao());
             
             // 创建 Prometheus 监控配置文件（CPU + 内存）
             DeviceProfile promMonitorProfile = createPrometheusMonitorProfile();
-            profileService.save(promMonitorProfile);
+            deviceService.saveProfile(promMonitorProfile);
             log.info("创建 Prometheus 监控配置: {}", promMonitorProfile.getName());
             log.info("  包含 {} 个遥测定义:", promMonitorProfile.getTelemetryDefinitions().size());
             promMonitorProfile.getTelemetryDefinitions().forEach(def -> {
@@ -133,7 +133,7 @@ public class MiniTBApplication {
             PrometheusDataPuller promPuller = new PrometheusDataPuller(
                 prometheusUrl, 
                 transportService,
-                profileService
+                deviceService
             );
             
             // 注册监控设备1: Prometheus 自身
@@ -145,7 +145,7 @@ public class MiniTBApplication {
             
             // 创建并注册监控设备2: node_exporter 系统监控
             DeviceProfile nodeExporterProfile = createNodeExporterProfile();
-            profileService.save(nodeExporterProfile);
+            deviceService.saveProfile(nodeExporterProfile);
             
             promPuller.registerDeviceWithProfile(
                 "localhost:9100",

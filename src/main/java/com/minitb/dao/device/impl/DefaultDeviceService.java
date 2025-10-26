@@ -2,9 +2,12 @@ package com.minitb.dao.device.impl;
 
 import com.minitb.dao.device.DeviceService;
 import com.minitb.dao.DeviceDao;
+import com.minitb.dao.DeviceProfileDao;
 import com.minitb.domain.entity.Device;
 import com.minitb.domain.entity.DeviceId;
+import com.minitb.domain.entity.DeviceProfile;
 import com.minitb.domain.entity.DeviceProfileId;
+import com.minitb.domain.entity.TelemetryDefinition;
 import com.minitb.dao.common.AbstractEntityService;
 import com.minitb.dao.common.exception.MiniTbException;
 import com.minitb.dao.common.exception.MiniTbErrorCode;
@@ -16,12 +19,14 @@ import java.util.Optional;
 
 /**
  * MiniTB设备服务默认实现
+ * 管理设备和设备配置
  */
 @Slf4j
 @RequiredArgsConstructor
 public class DefaultDeviceService extends AbstractEntityService implements DeviceService {
 
     private final DeviceDao deviceDao;
+    private final DeviceProfileDao deviceProfileDao;
 
     @Override
     public Device save(Device device) throws MiniTbException {
@@ -175,6 +180,165 @@ public class DefaultDeviceService extends AbstractEntityService implements Devic
         return updatedDevice;
     }
 
+    // ==================== DeviceProfile 管理实现 ====================
+
+    @Override
+    public DeviceProfile saveProfile(DeviceProfile deviceProfile) throws MiniTbException {
+        log.info("保存设备配置: {}", deviceProfile.getName());
+        
+        // 1. 验证设备配置数据
+        validateDeviceProfile(deviceProfile);
+        
+        // 2. 检查名称冲突
+        if (deviceProfile.getId() == null) {
+            if (existsProfileByName(deviceProfile.getName())) {
+                throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS,
+                    "Device profile with name '" + deviceProfile.getName() + "' already exists");
+            }
+        } else {
+            Optional<DeviceProfile> existingProfile = findProfileById(deviceProfile.getId());
+            if (existingProfile.isPresent() && !existingProfile.get().getName().equals(deviceProfile.getName())) {
+                if (existsProfileByName(deviceProfile.getName())) {
+                    throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS,
+                        "Device profile with name '" + deviceProfile.getName() + "' already exists");
+                }
+            }
+        }
+        
+        DeviceProfile savedProfile = deviceProfileDao.save(deviceProfile);
+        logEntityAction(savedProfile.getId(), "DEVICE_PROFILE_SAVED", "Device profile saved: " + savedProfile.getName());
+        
+        log.info("设备配置保存成功: {} (ID: {})", savedProfile.getName(), savedProfile.getId());
+        return savedProfile;
+    }
+
+    @Override
+    public Optional<DeviceProfile> findProfileById(DeviceProfileId deviceProfileId) {
+        validateEntityId(deviceProfileId);
+        return deviceProfileDao.findById(deviceProfileId);
+    }
+
+    @Override
+    public DeviceProfile getProfileById(DeviceProfileId deviceProfileId) throws MiniTbException {
+        return checkNotNull(findProfileById(deviceProfileId), "Device profile not found with ID: " + deviceProfileId);
+    }
+
+    @Override
+    public Optional<DeviceProfile> findProfileByName(String name) {
+        validateEntityName(name);
+        return deviceProfileDao.findByName(name);
+    }
+
+    @Override
+    public void deleteProfile(DeviceProfileId deviceProfileId) throws MiniTbException {
+        log.info("删除设备配置: {}", deviceProfileId);
+        
+        DeviceProfile deviceProfile = getProfileById(deviceProfileId);
+        
+        if (deviceProfileDao.isUsedByDevices(deviceProfileId)) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS,
+                "Device profile is being used by devices and cannot be deleted");
+        }
+        
+        deviceProfileDao.delete(deviceProfile);
+        logEntityAction(deviceProfileId, "DEVICE_PROFILE_DELETED", "Device profile deleted: " + deviceProfile.getName());
+        
+        log.info("设备配置删除成功: {} (ID: {})", deviceProfile.getName(), deviceProfileId);
+    }
+
+    @Override
+    public List<DeviceProfile> findAllProfiles() {
+        return deviceProfileDao.findAll();
+    }
+
+    @Override
+    public List<DeviceProfile> findProfilesByDataSourceType(DeviceProfile.DataSourceType dataSourceType) {
+        if (dataSourceType == null) {
+            return List.of();
+        }
+        return deviceProfileDao.findByDataSourceType(dataSourceType);
+    }
+
+    @Override
+    public boolean existsProfileByName(String name) {
+        validateEntityName(name);
+        return deviceProfileDao.existsByName(name);
+    }
+
+    @Override
+    public DeviceProfile addTelemetryDefinition(DeviceProfileId deviceProfileId, TelemetryDefinition telemetryDefinition)
+            throws MiniTbException {
+        log.info("添加遥测定义: {} -> {}", deviceProfileId, telemetryDefinition.getKey());
+        
+        validateTelemetryDefinition(telemetryDefinition);
+        DeviceProfile deviceProfile = getProfileById(deviceProfileId);
+        
+        if (deviceProfile.hasTelemetryDefinition(telemetryDefinition.getKey())) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS,
+                "Telemetry definition with key '" + telemetryDefinition.getKey() + "' already exists");
+        }
+        
+        deviceProfile.addTelemetryDefinition(telemetryDefinition);
+        DeviceProfile updatedProfile = deviceProfileDao.save(deviceProfile);
+        logEntityAction(deviceProfileId, "TELEMETRY_DEFINITION_ADDED", "Telemetry definition added: " + telemetryDefinition.getKey());
+        
+        log.info("遥测定义添加成功: {} -> {}", deviceProfileId, telemetryDefinition.getKey());
+        return updatedProfile;
+    }
+
+    @Override
+    public DeviceProfile removeTelemetryDefinition(DeviceProfileId deviceProfileId, String telemetryKey)
+            throws MiniTbException {
+        log.info("移除遥测定义: {} -> {}", deviceProfileId, telemetryKey);
+        
+        if (telemetryKey == null || telemetryKey.trim().isEmpty()) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS, "Telemetry key cannot be null or empty");
+        }
+        
+        DeviceProfile deviceProfile = getProfileById(deviceProfileId);
+        
+        if (!deviceProfile.hasTelemetryDefinition(telemetryKey)) {
+            throw new MiniTbException(MiniTbErrorCode.ITEM_NOT_FOUND,
+                "Telemetry definition with key '" + telemetryKey + "' not found");
+        }
+        
+        deviceProfile.removeTelemetryDefinition(telemetryKey);
+        DeviceProfile updatedProfile = deviceProfileDao.save(deviceProfile);
+        logEntityAction(deviceProfileId, "TELEMETRY_DEFINITION_REMOVED", "Telemetry definition removed: " + telemetryKey);
+        
+        log.info("遥测定义移除成功: {} -> {}", deviceProfileId, telemetryKey);
+        return updatedProfile;
+    }
+
+    @Override
+    public DeviceProfile updateTelemetryDefinition(DeviceProfileId deviceProfileId, TelemetryDefinition telemetryDefinition)
+            throws MiniTbException {
+        log.info("更新遥测定义: {} -> {}", deviceProfileId, telemetryDefinition.getKey());
+        
+        validateTelemetryDefinition(telemetryDefinition);
+        DeviceProfile deviceProfile = getProfileById(deviceProfileId);
+        
+        if (!deviceProfile.hasTelemetryDefinition(telemetryDefinition.getKey())) {
+            throw new MiniTbException(MiniTbErrorCode.ITEM_NOT_FOUND,
+                "Telemetry definition with key '" + telemetryDefinition.getKey() + "' not found");
+        }
+        
+        deviceProfile.updateTelemetryDefinition(telemetryDefinition);
+        DeviceProfile updatedProfile = deviceProfileDao.save(deviceProfile);
+        logEntityAction(deviceProfileId, "TELEMETRY_DEFINITION_UPDATED", "Telemetry definition updated: " + telemetryDefinition.getKey());
+        
+        log.info("遥测定义更新成功: {} -> {}", deviceProfileId, telemetryDefinition.getKey());
+        return updatedProfile;
+    }
+
+    @Override
+    public List<TelemetryDefinition> getTelemetryDefinitions(DeviceProfileId deviceProfileId) throws MiniTbException {
+        DeviceProfile deviceProfile = getProfileById(deviceProfileId);
+        return deviceProfile.getTelemetryDefinitions();
+    }
+
+    // ==================== 私有验证方法 ====================
+
     /**
      * 验证设备数据
      */
@@ -191,6 +355,42 @@ public class DefaultDeviceService extends AbstractEntityService implements Devic
         
         if (device.getCreatedTime() <= 0) {
             device.setCreatedTime(System.currentTimeMillis());
+        }
+    }
+
+    /**
+     * 验证设备配置数据
+     */
+    private void validateDeviceProfile(DeviceProfile deviceProfile) throws MiniTbException {
+        if (deviceProfile == null) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS, "Device profile cannot be null");
+        }
+        
+        validateEntityName(deviceProfile.getName());
+        
+        if (deviceProfile.getDataSourceType() == null) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS, "Device profile data source type cannot be null");
+        }
+        
+        if (deviceProfile.getCreatedTime() <= 0) {
+            deviceProfile.setCreatedTime(System.currentTimeMillis());
+        }
+    }
+
+    /**
+     * 验证遥测定义数据
+     */
+    private void validateTelemetryDefinition(TelemetryDefinition telemetryDefinition) throws MiniTbException {
+        if (telemetryDefinition == null) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS, "Telemetry definition cannot be null");
+        }
+        
+        if (telemetryDefinition.getKey() == null || telemetryDefinition.getKey().trim().isEmpty()) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS, "Telemetry definition key cannot be null or empty");
+        }
+        
+        if (telemetryDefinition.getDataType() == null) {
+            throw new MiniTbException(MiniTbErrorCode.BAD_REQUEST_PARAMS, "Telemetry definition data type cannot be null");
         }
     }
 }
