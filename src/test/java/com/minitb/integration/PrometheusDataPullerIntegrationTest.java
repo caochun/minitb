@@ -62,14 +62,25 @@ class PrometheusDataPullerIntegrationTest {
     @Autowired
     private TelemetryStorage telemetryStorage;
     
-    private DeviceProfileId localhostProfileId;
-    private DeviceId localhostDeviceId;
+    @Autowired
+    private com.minitb.transport.service.TransportService transportService;
+    
+    @Autowired
+    private com.minitb.actor.MiniTbActorSystem actorSystem;
+    
+    private static DeviceProfileId localhostProfileId;  // ← static，所有测试共享
+    private static DeviceId localhostDeviceId;
+    private static boolean initialized = false;
     
     private static final String PROMETHEUS_ENDPOINT = "http://localhost:9090";
     private static final String NODE_EXPORTER_INSTANCE = "localhost:9100";
     
     @BeforeEach
     void setUp() throws Exception {
+        // 只初始化一次
+        if (initialized) {
+            return;
+        }
         // 验证 Prometheus 是否可访问
         if (!isPrometheusAvailable()) {
             fail("❌ Prometheus 服务不可用，请确保 http://localhost:9090 可访问");
@@ -98,6 +109,15 @@ class PrometheusDataPullerIntegrationTest {
         
         Device savedDevice = deviceService.save(localhostDevice);
         localhostDeviceId = savedDevice.getId();
+        
+        // 手动为测试设备创建 DeviceActor（测试环境需要）
+        // 因为 TransportService.setActorSystem() 只在应用启动时调用一次
+        com.minitb.actor.device.DeviceActor deviceActor = 
+            new com.minitb.actor.device.DeviceActor(savedDevice.getId(), savedDevice);
+        actorSystem.createActor(deviceActor.getActorId(), deviceActor);
+        System.out.println("✅ 为测试设备创建 DeviceActor: " + deviceActor.getActorId());
+        
+        initialized = true;  // ← 标记已初始化
         
         System.out.println("\n========================================");
         System.out.println("✅ 测试环境初始化完成");
@@ -282,7 +302,8 @@ class PrometheusDataPullerIntegrationTest {
                         .build())
                 .build());
         
-        // 内存使用率
+        // 内存使用率 (macOS 兼容版本)
+        // macOS 没有 MemAvailable_bytes，使用 active / (active + free + inactive)
         telemetryDefs.add(TelemetryDefinition.builder()
                 .key("memory_usage_percent")
                 .displayName("内存使用率")
@@ -290,7 +311,7 @@ class PrometheusDataPullerIntegrationTest {
                 .description("本机内存使用率百分比")
                 .unit("%")
                 .protocolConfig(PrometheusConfig.builder()
-                        .promQL("(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100")
+                        .promQL("(node_memory_active_bytes / (node_memory_active_bytes + node_memory_free_bytes + node_memory_inactive_bytes)) * 100")
                         .needsRateCalculation(false)
                         .build())
                 .build());

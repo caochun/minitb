@@ -140,16 +140,26 @@ public class PrometheusDataPuller {
                 );
                 
                 // 6. 根据标签过滤出属于当前设备的数据
+                log.debug("  查询返回 {} 条时间序列", results.size());
+                
                 Optional<PrometheusQueryResult> deviceData = results.stream()
                         .filter(result -> result.matchesLabel(labelKey, labelValue))
                         .findFirst();
                 
                 if (deviceData.isPresent()) {
                     telemetryData.put(telemetryDef.getKey(), deviceData.get().getValue());
-                    log.debug("  ✓ {} = {}", telemetryDef.getKey(), deviceData.get().getValue());
+                    log.info("  ✓ {} = {}", telemetryDef.getKey(), deviceData.get().getValue());
                 } else {
-                    log.debug("  ✗ {} - 未找到匹配标签 {}={} 的数据", 
-                        telemetryDef.getKey(), labelKey, labelValue);
+                    log.warn("  ✗ {} - 未找到匹配标签 {}={} 的数据，查询返回 {} 条结果", 
+                        telemetryDef.getKey(), labelKey, labelValue, results.size());
+                    
+                    // 打印所有返回的标签，帮助调试
+                    if (!results.isEmpty() && log.isDebugEnabled()) {
+                        log.debug("    可用的标签:");
+                        for (PrometheusQueryResult result : results) {
+                            log.debug("      {}", result.getMetric());
+                        }
+                    }
                 }
                 
             } catch (Exception e) {
