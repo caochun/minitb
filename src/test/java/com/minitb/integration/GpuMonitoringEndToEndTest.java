@@ -192,14 +192,9 @@ class GpuMonitoringEndToEndTest {
         assertFalse(gpu0Util.isEmpty(), "GPU 0 利用率数据应存在");
         assertFalse(gpu1Util.isEmpty(), "GPU 1 利用率数据应存在");
         
-        Optional<Double> gpu0UtilOpt = gpu0Util.get(gpu0Util.size() - 1).getDoubleValue();
-        Optional<Double> gpu1UtilOpt = gpu1Util.get(gpu1Util.size() - 1).getDoubleValue();
-        
-        assertTrue(gpu0UtilOpt.isPresent(), "GPU 0 利用率值应存在");
-        assertTrue(gpu1UtilOpt.isPresent(), "GPU 1 利用率值应存在");
-        
-        double gpu0UtilValue = gpu0UtilOpt.get();
-        double gpu1UtilValue = gpu1UtilOpt.get();
+        // 获取最新值
+        double gpu0UtilValue = getValue(gpu0Util.get(gpu0Util.size() - 1));
+        double gpu1UtilValue = getValue(gpu1Util.get(gpu1Util.size() - 1));
         
         System.out.println("📈 GPU 利用率:");
         System.out.println("  GPU 0: " + String.format("%.1f", gpu0UtilValue) + "%");
@@ -237,14 +232,9 @@ class GpuMonitoringEndToEndTest {
         assertFalse(gpu0Temp.isEmpty(), "GPU 0 温度数据应存在");
         assertFalse(gpu1Temp.isEmpty(), "GPU 1 温度数据应存在");
         
-        Optional<Double> gpu0TempOpt = gpu0Temp.get(gpu0Temp.size() - 1).getDoubleValue();
-        Optional<Double> gpu1TempOpt = gpu1Temp.get(gpu1Temp.size() - 1).getDoubleValue();
-        
-        assertTrue(gpu0TempOpt.isPresent(), "GPU 0 温度值应存在");
-        assertTrue(gpu1TempOpt.isPresent(), "GPU 1 温度值应存在");
-        
-        double gpu0TempValue = gpu0TempOpt.get();
-        double gpu1TempValue = gpu1TempOpt.get();
+        // 获取最新值
+        double gpu0TempValue = getValue(gpu0Temp.get(gpu0Temp.size() - 1));
+        double gpu1TempValue = getValue(gpu1Temp.get(gpu1Temp.size() - 1));
         
         System.out.println("🌡️  GPU 温度:");
         System.out.println("  GPU 0: " + String.format("%.0f", gpu0TempValue) + "°C");
@@ -282,14 +272,9 @@ class GpuMonitoringEndToEndTest {
         assertFalse(gpu0Power.isEmpty(), "GPU 0 功耗数据应存在");
         assertFalse(gpu1Power.isEmpty(), "GPU 1 功耗数据应存在");
         
-        Optional<Double> gpu0PowerOpt = gpu0Power.get(gpu0Power.size() - 1).getDoubleValue();
-        Optional<Double> gpu1PowerOpt = gpu1Power.get(gpu1Power.size() - 1).getDoubleValue();
-        
-        assertTrue(gpu0PowerOpt.isPresent(), "GPU 0 功耗值应存在");
-        assertTrue(gpu1PowerOpt.isPresent(), "GPU 1 功耗值应存在");
-        
-        double gpu0PowerValue = gpu0PowerOpt.get();
-        double gpu1PowerValue = gpu1PowerOpt.get();
+        // 获取最新值
+        double gpu0PowerValue = getValue(gpu0Power.get(gpu0Power.size() - 1));
+        double gpu1PowerValue = getValue(gpu1Power.get(gpu1Power.size() - 1));
         
         System.out.println("⚡ GPU 功耗:");
         System.out.println("  GPU 0: " + String.format("%.2f", gpu0PowerValue) + " W");
@@ -334,18 +319,13 @@ class GpuMonitoringEndToEndTest {
         assertFalse(gpu1Used.isEmpty(), "GPU 1 已用显存数据应存在");
         assertFalse(gpu1Free.isEmpty(), "GPU 1 空闲显存数据应存在");
         
-        Optional<Double> gpu0UsedOpt = gpu0Used.get(gpu0Used.size() - 1).getDoubleValue();
-        Optional<Double> gpu0FreeOpt = gpu0Free.get(gpu0Free.size() - 1).getDoubleValue();
-        assertTrue(gpu0UsedOpt.isPresent() && gpu0FreeOpt.isPresent());
-        double gpu0UsedValue = gpu0UsedOpt.get();
-        double gpu0FreeValue = gpu0FreeOpt.get();
+        // 获取最新值
+        double gpu0UsedValue = getValue(gpu0Used.get(gpu0Used.size() - 1));
+        double gpu0FreeValue = getValue(gpu0Free.get(gpu0Free.size() - 1));
         double gpu0Total = gpu0UsedValue + gpu0FreeValue;
         
-        Optional<Double> gpu1UsedOpt = gpu1Used.get(gpu1Used.size() - 1).getDoubleValue();
-        Optional<Double> gpu1FreeOpt = gpu1Free.get(gpu1Free.size() - 1).getDoubleValue();
-        assertTrue(gpu1UsedOpt.isPresent() && gpu1FreeOpt.isPresent());
-        double gpu1UsedValue = gpu1UsedOpt.get();
-        double gpu1FreeValue = gpu1FreeOpt.get();
+        double gpu1UsedValue = getValue(gpu1Used.get(gpu1Used.size() - 1));
+        double gpu1FreeValue = getValue(gpu1Free.get(gpu1Free.size() - 1));
         double gpu1Total = gpu1UsedValue + gpu1FreeValue;
         
         System.out.println("💾 GPU 显存:");
@@ -565,6 +545,21 @@ class GpuMonitoringEndToEndTest {
         if (metricKey.contains("power")) return "W";
         if (metricKey.contains("memory")) return "MiB";
         return "";
+    }
+    
+    /**
+     * 从 TsKvEntry 获取数值（自动处理 DOUBLE 或 LONG 类型）
+     */
+    private double getValue(TsKvEntry entry) {
+        Optional<Double> doubleValue = entry.getDoubleValue();
+        if (doubleValue.isPresent()) {
+            return doubleValue.get();
+        }
+        Optional<Long> longValue = entry.getLongValue();
+        if (longValue.isPresent()) {
+            return longValue.get().doubleValue();
+        }
+        throw new IllegalStateException("TsKvEntry 既不包含 double 值也不包含 long 值");
     }
     
     private boolean checkDcgmAvailable() {
