@@ -39,3 +39,4 @@ public interface DeviceRepository {
     void deleteById(DeviceId deviceId);
 }
 
+

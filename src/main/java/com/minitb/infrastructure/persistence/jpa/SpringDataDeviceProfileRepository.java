@@ -1,6 +1,6 @@
-package com.minitb.infrastructure.persistence.repository;
+package com.minitb.infrastructure.persistence.jpa;
 
-import com.minitb.infrastructure.persistence.entity.DeviceProfileEntity;
+import com.minitb.infrastructure.persistence.jpa.entity.DeviceProfileEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

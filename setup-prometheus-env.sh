@@ -118,3 +118,4 @@ echo "   docker stop prometheus-test node-exporter"
 echo "   docker rm prometheus-test node-exporter"
 echo ""
 
+

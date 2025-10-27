@@ -49,9 +49,9 @@ public class PrometheusDataPuller {
     
     /**
      * 定时拉取所有 Prometheus 设备的数据
-     * 每 30 秒执行一次
+     * 每 2 秒执行一次
      */
-    @Scheduled(fixedRate = 30000, initialDelay = 5000)
+    @Scheduled(fixedRate = 2000, initialDelay = 3000)
     public void pullAllPrometheusDevices() {
         try {
             // 1. 获取所有 Prometheus 类型的设备

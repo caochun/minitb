@@ -1,15 +1,49 @@
+# ============================================
+# MiniTB 存储配置
+# ============================================
+minitb:
+  storage:
+    # 存储类型: jpa | sqlite
+    # jpa: 使用 Spring Data JPA + H2 内存数据库（开发/测试）
+    # sqlite: 使用 SQLite 文件数据库（生产/嵌入式）
+    type: sqlite  # ⭐ 改为 SQLite
+    
+    sqlite:
+      path: data/minitb.db  # SQLite 数据库文件路径
+      auto-backup: false    # 是否自动备份
+
+# ============================================
+# Spring 配置
+# ============================================
 spring:
   application:
     name: minitb
   
-  # 数据源配置（H2 内存数据库）
+  # Web 服务器配置
+  web:
+    server:
+      port: 8080  # HTTP 端口
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+          no-store: true
+          must-revalidate: true
+  
+  # ⭐ 使用 SQLite 时禁用 JPA 自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  
+  # 数据源配置（仅当 storage.type=jpa 时生效）
   datasource:
     url: jdbc:h2:mem:minitb
     driver-class-name: org.h2.Driver
     username: sa
     password: 
   
-  # JPA 配置
+  # JPA 配置（仅当 storage.type=jpa 时生效）
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
@@ -20,15 +54,17 @@ spring:
         format_sql: true
         use_sql_comments: false
   
-  # H2 控制台（可选，用于调试）
+  # H2 控制台（仅当使用 JPA 时）
   h2:
     console:
-      enabled: true
+      enabled: false  # ⭐ 使用 SQLite 时禁用
       path: /h2-console
       settings:
         web-allow-others: false
 
+# ============================================
 # 日志配置
+# ============================================
 logging:
   level:
     root: INFO
@@ -36,4 +72,5 @@ logging:
     org.springframework: WARN
     org.hibernate: WARN
     io.netty: WARN
+
 

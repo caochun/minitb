@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniTB GPU 监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 16px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #48bb78;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        
+        .device-selector {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .device-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .device-tab {
+            flex: 1;
+            padding: 15px 25px;
+            background: #e2e8f0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .device-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .device-tab:hover:not(.active) {
+            background: #cbd5e0;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+        }
+        
+        .metric-label {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        
+        .metric-unit {
+            color: #a0aec0;
+            font-size: 18px;
+            margin-left: 5px;
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            padding: 50px;
+        }
+        
+        .error {
+            background: #fc8181;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .update-time {
+            text-align: right;
+            color: #a0aec0;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>
+                🖥️ MiniTB GPU 监控
+                <span class="status" id="status">● 实时监控</span>
+            </h1>
+            <p>NVIDIA TITAN V 双卡实时监控 - 数据每 2 秒更新</p>
+            <div class="update-time" id="updateTime">正在加载...</div>
+        </div>
+        
+        <!-- 设备选择 -->
+        <div class="device-selector">
+            <div class="device-tabs" id="deviceTabs">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 错误提示 -->
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <!-- 实时指标卡片 -->
+        <div class="metrics-grid" id="metricsGrid">
+            <div class="loading">正在加载设备数据...</div>
+        </div>
+        
+        <!-- 温度趋势图 -->
+        <div class="chart-container">
+            <div class="chart-title">📈 温度趋势（最近 60 秒）</div>
+            <canvas id="temperatureChart"></canvas>
+        </div>
+        
+        <!-- 利用率趋势图 -->
+        <div class="chart-container">
+            <div class="chart-title">📊 GPU 利用率（最近 60 秒）</div>
+            <canvas id="utilizationChart"></canvas>
+        </div>
+        
+        <!-- 功耗趋势图 -->
+        <div class="chart-container">
+            <div class="chart-title">⚡ 功耗趋势（最近 60 秒）</div>
+            <canvas id="powerChart"></canvas>
+        </div>
+    </div>
+    
+    <script src="/gpu-monitor.js?v=2"></script>
+</body>
+</html>
+

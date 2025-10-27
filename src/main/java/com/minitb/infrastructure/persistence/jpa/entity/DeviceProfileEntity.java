@@ -1,4 +1,4 @@
-package com.minitb.infrastructure.persistence.entity;
+package com.minitb.infrastructure.persistence.jpa.entity;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

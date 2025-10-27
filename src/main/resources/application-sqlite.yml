@@ -1,0 +1,29 @@
+# SQLite 生产配置
+# 使用方式: mvn spring-boot:run -Dspring-boot.run.profiles=sqlite
+
+minitb:
+  storage:
+    type: sqlite
+    sqlite:
+      path: data/minitb.db  # 生产数据库路径
+      auto-backup: true
+
+# 禁用 JPA 相关配置
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  
+  h2:
+    console:
+      enabled: false  # 不使用 H2
+
+logging:
+  level:
+    root: INFO
+    com.minitb: INFO
+    com.minitb.infrastructure.persistence.sqlite: DEBUG
+    org.springframework: WARN
+    io.netty: WARN
+

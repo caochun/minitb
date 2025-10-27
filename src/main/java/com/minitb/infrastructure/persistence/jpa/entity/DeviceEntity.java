@@ -1,4 +1,4 @@
-package com.minitb.infrastructure.persistence.entity;
+package com.minitb.infrastructure.persistence.jpa.entity;
 
 import com.minitb.domain.device.Device;
 import com.minitb.domain.id.DeviceId;

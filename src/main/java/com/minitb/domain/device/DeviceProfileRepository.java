@@ -24,6 +24,11 @@ public interface DeviceProfileRepository {
     Optional<DeviceProfile> findById(DeviceProfileId profileId);
     
     /**
+     * 根据名称查找设备配置
+     */
+    Optional<DeviceProfile> findByName(String name);
+    
+    /**
      * 查找所有设备配置
      */
     List<DeviceProfile> findAll();
@@ -33,4 +38,5 @@ public interface DeviceProfileRepository {
      */
     void deleteById(DeviceProfileId profileId);
 }
+
 

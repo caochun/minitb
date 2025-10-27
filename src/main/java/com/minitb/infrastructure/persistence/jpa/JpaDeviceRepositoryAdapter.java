@@ -1,11 +1,12 @@
-package com.minitb.infrastructure.persistence.repository;
+package com.minitb.infrastructure.persistence.jpa;
 
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceRepository;
 import com.minitb.domain.id.DeviceId;
-import com.minitb.infrastructure.persistence.entity.DeviceEntity;
+import com.minitb.infrastructure.persistence.jpa.entity.DeviceEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -17,8 +18,11 @@ import java.util.stream.Collectors;
  * 设备仓储的 JPA 适配器
  * 
  * 实现 Domain 层的 DeviceRepository 接口，将领域操作转换为 JPA 操作
+ * 
+ * 仅当 minitb.storage.type=jpa 时生效
  */
 @Component
+@ConditionalOnProperty(name = "minitb.storage.type", havingValue = "jpa", matchIfMissing = true)
 @RequiredArgsConstructor
 @Slf4j
 public class JpaDeviceRepositoryAdapter implements DeviceRepository {
@@ -67,4 +71,5 @@ public class JpaDeviceRepositoryAdapter implements DeviceRepository {
         jpaRepository.deleteById(deviceId.getId());
     }
 }
+
 

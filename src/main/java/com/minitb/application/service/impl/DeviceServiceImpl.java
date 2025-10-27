@@ -129,9 +129,7 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     @Transactional(readOnly = true)
     public Optional<DeviceProfile> findProfileByName(String name) {
-        // TODO: 需要在 DeviceProfileRepository 接口中添加此方法
-        log.warn("findProfileByName not yet supported in Domain Repository");
-        return Optional.empty();
+        return deviceProfileRepository.findByName(name);
     }
     
     @Override
