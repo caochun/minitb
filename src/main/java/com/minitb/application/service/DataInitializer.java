@@ -13,6 +13,7 @@ import com.minitb.domain.telemetry.DataType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,8 +26,11 @@ import java.util.Optional;
  * 职责：
  * - 应用启动时初始化默认数据
  * - 创建测试设备和配置文件
+ * 
+ * 注意: @Order(1) 确保在 TransportService 初始化之前执行
  */
 @Component
+@Order(1)  // ⭐ 优先级最高，先于其他 CommandLineRunner 执行
 @RequiredArgsConstructor
 @Slf4j
 public class DataInitializer implements CommandLineRunner {

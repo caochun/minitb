@@ -8,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -30,8 +31,11 @@ public class MiniTBSpringBootApplication {
     
     /**
      * 启动 MQTT 传输服务
+     * 
+     * @Order(10) 确保在 DataInitializer (@Order(1)) 之后执行
      */
     @Bean
+    @Order(10)  // ⭐ 在数据初始化之后执行
     public CommandLineRunner startMqttTransport(
             TransportService transportService,
             MiniTbActorSystem actorSystem) {
