@@ -138,23 +138,6 @@
                     <mainClass>com.minitb.MiniTBApplication</mainClass>
                 </configuration>
             </plugin>
-            
-            <!-- Spring Boot Maven Plugin -->
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.1.5</version>
-                <configuration>
-                    <mainClass>com.minitb.MiniTBSpringBootApplication</mainClass>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 </project>
