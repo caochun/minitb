@@ -73,21 +73,34 @@ public class TelemetryController {
     
     /**
      * 获取指定指标的历史数据
-     * GET /api/telemetry/{deviceId}/history/{key}?duration=60
+     * GET /api/telemetry/{deviceId}/history/{key}?startTime=xxx&endTime=xxx
+     * 或 GET /api/telemetry/{deviceId}/history/{key}?duration=60
      */
     @GetMapping("/{deviceId}/history/{key}")
     public List<TelemetryDataPointDto> getHistory(
             @PathVariable String deviceId,
             @PathVariable String key,
-            @RequestParam(defaultValue = "60") int duration) {
-        
-        log.debug("API: 获取历史数据: device={}, key={}, duration={}s", deviceId, key, duration);
+            @RequestParam(required = false) Long startTime,
+            @RequestParam(required = false) Long endTime,
+            @RequestParam(required = false, defaultValue = "60") Integer duration) {
         
         DeviceId devId = DeviceId.fromString(deviceId);
         
-        // 计算时间范围（最近 N 秒）
-        long endTs = System.currentTimeMillis();
-        long startTs = endTs - (duration * 1000L);
+        // 计算时间范围
+        long startTs, endTs;
+        
+        if (startTime != null && endTime != null) {
+            // 使用绝对时间
+            startTs = startTime;
+            endTs = endTime;
+            log.debug("API: 获取历史数据: device={}, key={}, startTime={}, endTime={}", 
+                     deviceId, key, startTime, endTime);
+        } else {
+            // 使用相对时间（最近 N 秒）
+            endTs = System.currentTimeMillis();
+            startTs = endTs - (duration * 1000L);
+            log.debug("API: 获取历史数据: device={}, key={}, duration={}s", deviceId, key, duration);
+        }
         
         // 查询数据
         List<TsKvEntry> history = telemetryStorage.query(devId, key, startTs, endTs);
