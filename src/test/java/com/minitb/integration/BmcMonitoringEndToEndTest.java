@@ -413,6 +413,116 @@ class BmcMonitoringEndToEndTest {
                         .build())
                 .build());
         
+        // 8. 主板温度
+        defs.add(TelemetryDefinition.builder()
+                .key("motherboard_temperature")
+                .displayName("主板温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("MB_TEMP")
+                        .build())
+                .build());
+        
+        // 9. 系统风扇1
+        defs.add(TelemetryDefinition.builder()
+                .key("system_fan1_speed")
+                .displayName("系统风扇1转速")
+                .dataType(DataType.LONG)
+                .unit("RPM")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("SYS_FAN1")
+                        .build())
+                .build());
+        
+        // 10. 系统风扇2
+        defs.add(TelemetryDefinition.builder()
+                .key("system_fan2_speed")
+                .displayName("系统风扇2转速")
+                .dataType(DataType.LONG)
+                .unit("RPM")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("SYS_FAN2")
+                        .build())
+                .build());
+        
+        // 11. 3.3V 电压
+        defs.add(TelemetryDefinition.builder()
+                .key("voltage_3_3v")
+                .displayName("3.3V电压")
+                .dataType(DataType.DOUBLE)
+                .unit("V")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("P_3V3")
+                        .build())
+                .build());
+        
+        // 12. Vcore CPU0
+        defs.add(TelemetryDefinition.builder()
+                .key("cpu0_vcore")
+                .displayName("CPU0核心电压")
+                .dataType(DataType.DOUBLE)
+                .unit("V")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("CPU0_VCORE")
+                        .build())
+                .build());
+        
+        // 13. Vcore CPU1
+        defs.add(TelemetryDefinition.builder()
+                .key("cpu1_vcore")
+                .displayName("CPU1核心电压")
+                .dataType(DataType.DOUBLE)
+                .unit("V")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("CPU1_VCORE")
+                        .build())
+                .build());
+        
+        // 14. PSU1 输入功率
+        defs.add(TelemetryDefinition.builder()
+                .key("psu1_input_power")
+                .displayName("PSU1输入功率")
+                .dataType(DataType.DOUBLE)
+                .unit("W")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("PSU1_PIN")
+                        .build())
+                .build());
+        
+        // 15. PSU2 输入功率
+        defs.add(TelemetryDefinition.builder()
+                .key("psu2_input_power")
+                .displayName("PSU2输入功率")
+                .dataType(DataType.DOUBLE)
+                .unit("W")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("PSU2_PIN")
+                        .build())
+                .build());
+        
+        // 16. 进风口温度
+        defs.add(TelemetryDefinition.builder()
+                .key("inlet_temperature")
+                .displayName("进风口温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("INLET_TEMP")
+                        .build())
+                .build());
+        
+        // 17. 出风口温度
+        defs.add(TelemetryDefinition.builder()
+                .key("outlet_temperature")
+                .displayName("出风口温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder()
+                        .sensorName("OUTLET_TEMP")
+                        .build())
+                .build());
+        
         return defs;
     }
     

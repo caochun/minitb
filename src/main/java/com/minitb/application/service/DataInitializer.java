@@ -204,6 +204,116 @@ public class DataInitializer implements CommandLineRunner {
                         .build())
                 .build());
         
+        // 8. SM 时钟频率
+        defs.add(TelemetryDefinition.builder()
+                .key("sm_clock")
+                .displayName("SM时钟频率")
+                .dataType(DataType.DOUBLE)
+                .unit("MHz")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_DEV_SM_CLOCK")
+                        .build())
+                .build());
+        
+        // 9. Memory 时钟频率
+        defs.add(TelemetryDefinition.builder()
+                .key("memory_clock")
+                .displayName("显存时钟频率")
+                .dataType(DataType.DOUBLE)
+                .unit("MHz")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_DEV_MEM_CLOCK")
+                        .build())
+                .build());
+        
+        // 10. SM 利用率
+        defs.add(TelemetryDefinition.builder()
+                .key("sm_utilization")
+                .displayName("SM利用率")
+                .dataType(DataType.DOUBLE)
+                .unit("%")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_PROF_SM_ACTIVE")
+                        .build())
+                .build());
+        
+        // 11. PCIe TX 吞吐量
+        defs.add(TelemetryDefinition.builder()
+                .key("pcie_tx_throughput")
+                .displayName("PCIe发送吞吐量")
+                .dataType(DataType.DOUBLE)
+                .unit("KB/s")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_PROF_PCIE_TX_BYTES")
+                        .build())
+                .build());
+        
+        // 12. PCIe RX 吞吐量
+        defs.add(TelemetryDefinition.builder()
+                .key("pcie_rx_throughput")
+                .displayName("PCIe接收吞吐量")
+                .dataType(DataType.DOUBLE)
+                .unit("KB/s")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_PROF_PCIE_RX_BYTES")
+                        .build())
+                .build());
+        
+        // 13. ECC 单比特错误
+        defs.add(TelemetryDefinition.builder()
+                .key("ecc_sbe_aggregate")
+                .displayName("ECC单比特错误总数")
+                .dataType(DataType.DOUBLE)
+                .unit("次")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_DEV_ECC_SBE_AGG_TOTAL")
+                        .build())
+                .build());
+        
+        // 14. ECC 双比特错误
+        defs.add(TelemetryDefinition.builder()
+                .key("ecc_dbe_aggregate")
+                .displayName("ECC双比特错误总数")
+                .dataType(DataType.DOUBLE)
+                .unit("次")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_DEV_ECC_DBE_AGG_TOTAL")
+                        .build())
+                .build());
+        
+        // 15. 功耗上限
+        defs.add(TelemetryDefinition.builder()
+                .key("power_limit")
+                .displayName("功耗上限")
+                .dataType(DataType.DOUBLE)
+                .unit("W")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_DEV_POWER_MGMT_LIMIT")
+                        .build())
+                .build());
+        
+        // 16. 风扇转速
+        defs.add(TelemetryDefinition.builder()
+                .key("fan_speed")
+                .displayName("风扇转速")
+                .dataType(DataType.DOUBLE)
+                .unit("%")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_DEV_FAN_SPEED")
+                        .build())
+                .build());
+        
+        // 17. NVLink 吞吐量（如果有）
+        defs.add(TelemetryDefinition.builder()
+                .key("nvlink_bandwidth")
+                .displayName("NVLink总带宽")
+                .dataType(DataType.DOUBLE)
+                .unit("MB/s")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("DCGM_FI_PROF_NVLINK_TX_BYTES + DCGM_FI_PROF_NVLINK_RX_BYTES")
+                        .build())
+                .build());
+        
         return defs;
     }
 }
