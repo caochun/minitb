@@ -339,7 +339,7 @@ async function updateCharts(config) {
             chart.data.datasets.forEach((dataset, index) => {
                 const history = datasets[index] || [];
                 dataset.data = history.map(item => ({
-                    x: -(now - item.ts) / 1000, // 相对时间（秒）
+                    x: -(now - item.timestamp) / 1000, // 相对时间（秒）
                     y: item.value
                 }));
             });
