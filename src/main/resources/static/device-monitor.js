@@ -251,7 +251,8 @@ function renderCharts(config) {
             data: { datasets },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
                 scales: {
                     x: {
                         type: 'linear',
