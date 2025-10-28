@@ -22,3 +22,4 @@ public class LatestTelemetryDto {
     private Map<String, Object> telemetry;       // 键值对：指标名 → 值
 }
 
+

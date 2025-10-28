@@ -17,3 +17,4 @@ logging:
     com.minitb: DEBUG
     com.minitb.infrastructure.persistence.sqlite: TRACE
 
+
