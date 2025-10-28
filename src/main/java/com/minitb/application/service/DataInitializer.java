@@ -2,10 +2,12 @@ package com.minitb.application.service;
 
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.IpmiDeviceConfiguration;
 import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
+import com.minitb.domain.protocol.IpmiConfig;
 import com.minitb.domain.protocol.PrometheusConfig;
 import com.minitb.domain.telemetry.DataType;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,20 @@ public class DataInitializer implements CommandLineRunner {
         
         // ========== 3. 确保 GPU 1 Device 存在 ==========
         ensureGpuDeviceExists(gpuProfileId, 1, "gpu-1-token", "gpu=1");
+        
+        // ========== 4. 如果启用了 IPMI，初始化 BMC 设备 (用于 Web 展示) ==========
+        if (isIpmiEnabled()) {
+            DeviceProfileId bmcProfileId = ensureBmcMonitorProfileExists();
+            ensureBmcDeviceExists(bmcProfileId);
+        }
+    }
+    
+    /**
+     * 检查 IPMI 是否启用
+     */
+    private boolean isIpmiEnabled() {
+        // 简单检查，可以从配置中读取
+        return true; // 总是创建 BMC 设备用于演示
     }
     
     /**
@@ -312,6 +328,150 @@ public class DataInitializer implements CommandLineRunner {
                 .protocolConfig(PrometheusConfig.builder()
                         .promQL("DCGM_FI_PROF_NVLINK_TX_BYTES + DCGM_FI_PROF_NVLINK_RX_BYTES")
                         .build())
+                .build());
+        
+        return defs;
+    }
+    
+    /**
+     * 确保 BMC 监控 DeviceProfile 存在
+     */
+    private DeviceProfileId ensureBmcMonitorProfileExists() {
+        Optional<DeviceProfile> existing = deviceService.findProfileByName("Gigabyte 服务器 BMC 监控");
+        if (existing.isPresent()) {
+            log.info("BMC 监控配置文件已存在，使用现有配置 (ID: {})", existing.get().getId());
+            return existing.get().getId();
+        }
+        
+        log.info("创建 BMC 监控配置文件...");
+        DeviceProfile bmcProfile = DeviceProfile.builder()
+                .name("Gigabyte 服务器 BMC 监控")
+                .description("Gigabyte MZ72-HB2 服务器 BMC 监控配置")
+                .dataSourceType(DeviceProfile.DataSourceType.IPMI)
+                .strictMode(true)
+                .telemetryDefinitions(createBmcTelemetryDefinitions())
+                .createdTime(System.currentTimeMillis())
+                .build();
+        
+        DeviceProfile saved = deviceService.saveProfile(bmcProfile);
+        log.info("✓ BMC DeviceProfile 创建: {} (ID: {})", saved.getName(), saved.getId());
+        log.info("  - 遥测指标数量: {}", saved.getTelemetryDefinitions().size());
+        
+        return saved.getId();
+    }
+    
+    /**
+     * 确保 BMC Device 存在
+     */
+    private void ensureBmcDeviceExists(DeviceProfileId profileId) {
+        String accessToken = "gigabyte-bmc-token";
+        
+        if (deviceService.existsByAccessToken(accessToken)) {
+            log.info("BMC 设备已存在，跳过创建 (token: {})", accessToken);
+            return;
+        }
+        
+        Device bmcDevice = Device.builder()
+                .name("Gigabyte MZ72-HB2 服务器")
+                .type("SERVER")
+                .deviceProfileId(profileId)
+                .accessToken(accessToken)
+                .configuration(IpmiDeviceConfiguration.builder()
+                        .host("114.212.81.58")
+                        .username("admin")
+                        .password("OGC61700147")
+                        .driver("LAN_2_0")
+                        .build())
+                .createdTime(System.currentTimeMillis())
+                .build();
+        
+        Device saved = deviceService.save(bmcDevice);
+        log.info("✓ BMC Device 创建: {} (ID: {})", saved.getName(), saved.getId());
+        log.info("  - AccessToken: {}", saved.getAccessToken());
+        log.info("  - BMC Host: 114.212.81.58");
+    }
+    
+    /**
+     * 创建 BMC 遥测指标定义
+     */
+    private List<TelemetryDefinition> createBmcTelemetryDefinitions() {
+        List<TelemetryDefinition> defs = new ArrayList<>();
+        
+        // CPU 温度
+        defs.add(TelemetryDefinition.builder()
+                .key("cpu0_temperature")
+                .displayName("CPU0温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder().sensorName("CPU0_TEMP").build())
+                .build());
+        
+        defs.add(TelemetryDefinition.builder()
+                .key("cpu1_temperature")
+                .displayName("CPU1温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder().sensorName("CPU1_TEMP").build())
+                .build());
+        
+        // 风扇转速
+        defs.add(TelemetryDefinition.builder()
+                .key("cpu0_fan_speed")
+                .displayName("CPU0风扇转速")
+                .dataType(DataType.LONG)
+                .unit("RPM")
+                .protocolConfig(IpmiConfig.builder().sensorName("CPU0_FAN").build())
+                .build());
+        
+        defs.add(TelemetryDefinition.builder()
+                .key("cpu1_fan_speed")
+                .displayName("CPU1风扇转速")
+                .dataType(DataType.LONG)
+                .unit("RPM")
+                .protocolConfig(IpmiConfig.builder().sensorName("CPU1_FAN").build())
+                .build());
+        
+        // 电压
+        defs.add(TelemetryDefinition.builder()
+                .key("voltage_12v")
+                .displayName("12V电压")
+                .dataType(DataType.DOUBLE)
+                .unit("V")
+                .protocolConfig(IpmiConfig.builder().sensorName("P_12V").build())
+                .build());
+        
+        defs.add(TelemetryDefinition.builder()
+                .key("voltage_5v")
+                .displayName("5V电压")
+                .dataType(DataType.DOUBLE)
+                .unit("V")
+                .protocolConfig(IpmiConfig.builder().sensorName("P_5V").build())
+                .build());
+        
+        defs.add(TelemetryDefinition.builder()
+                .key("voltage_3_3v")
+                .displayName("3.3V电压")
+                .dataType(DataType.DOUBLE)
+                .unit("V")
+                .protocolConfig(IpmiConfig.builder().sensorName("P_3V3").build())
+                .build());
+        
+        // 内存温度
+        defs.add(TelemetryDefinition.builder()
+                .key("memory_temperature")
+                .displayName("内存温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder().sensorName("DIMMG0_TEMP").build())
+                .build());
+        
+        // 主板温度
+        defs.add(TelemetryDefinition.builder()
+                .key("motherboard_temperature")
+                .displayName("主板温度")
+                .dataType(DataType.DOUBLE)
+                .unit("°C")
+                .protocolConfig(IpmiConfig.builder().sensorName("MB_TEMP").build())
                 .build());
         
         return defs;

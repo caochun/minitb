@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniTB GPU 监控</title>
+    <title>MiniTB 设备监控</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
@@ -172,10 +172,10 @@
         <!-- 头部 -->
         <div class="header">
             <h1>
-                🖥️ MiniTB GPU 监控
+                <span id="headerIcon">🖥️</span> <span id="headerTitle">MiniTB 设备监控</span>
                 <span class="status" id="status">● 实时监控</span>
             </h1>
-            <p>NVIDIA TITAN V 双卡实时监控 - 数据每 2 秒更新</p>
+            <p id="headerSubtitle">GPU 与服务器 BMC 实时监控 - 数据自动更新</p>
             <div class="update-time" id="updateTime">正在加载...</div>
         </div>
         
@@ -194,26 +194,11 @@
             <div class="loading">正在加载设备数据...</div>
         </div>
         
-        <!-- 温度趋势图 -->
-        <div class="chart-container">
-            <div class="chart-title">📈 温度趋势（最近 60 秒）</div>
-            <canvas id="temperatureChart"></canvas>
-        </div>
-        
-        <!-- 利用率趋势图 -->
-        <div class="chart-container">
-            <div class="chart-title">📊 GPU 利用率（最近 60 秒）</div>
-            <canvas id="utilizationChart"></canvas>
-        </div>
-        
-        <!-- 功耗趋势图 -->
-        <div class="chart-container">
-            <div class="chart-title">⚡ 功耗趋势（最近 60 秒）</div>
-            <canvas id="powerChart"></canvas>
-        </div>
+        <!-- 图表容器 - 动态生成 -->
+        <div id="chartsContainer"></div>
     </div>
     
-    <script src="/gpu-monitor.js?v=2"></script>
+    <script src="/device-monitor.js?v=3"></script>
 </body>
 </html>
 
