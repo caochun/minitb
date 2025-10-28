@@ -17,7 +17,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = PrometheusConfig.class, name = "PROMETHEUS"),
     @JsonSubTypes.Type(value = MqttConfig.class, name = "MQTT"),
-    @JsonSubTypes.Type(value = HttpConfig.class, name = "HTTP")
+    @JsonSubTypes.Type(value = HttpConfig.class, name = "HTTP"),
+    @JsonSubTypes.Type(value = IpmiConfig.class, name = "IPMI")
 })
 public interface ProtocolConfig {
     

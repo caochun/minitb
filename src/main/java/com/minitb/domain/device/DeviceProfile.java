@@ -151,6 +151,7 @@ public class DeviceProfile {
         MQTT,           // MQTT 推送
         HTTP,           // HTTP 推送
         PROMETHEUS,     // Prometheus 拉取
+        IPMI,           // IPMI 拉取（ipmitool）
         COAP            // CoAP 推送
     }
 }

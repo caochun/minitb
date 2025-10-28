@@ -1,0 +1,18 @@
+# IPMI 测试配置
+minitb:
+  storage:
+    type: sqlite
+    sqlite:
+      path: target/test-ipmi.db
+  
+  datasource:
+    ipmi:
+      enabled: true               # 启用 IPMI 数据源
+      pull-interval: 30000        # 30 秒拉取一次
+      initial-delay: 5000         # 启动后 5 秒开始
+
+logging:
+  level:
+    com.minitb: DEBUG
+    com.minitb.datasource.ipmi: INFO
+

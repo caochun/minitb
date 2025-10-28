@@ -1,7 +1,8 @@
 # ============================================
-# MiniTB 存储配置
+# MiniTB 配置
 # ============================================
 minitb:
+  # 存储配置
   storage:
     # 存储类型: jpa | sqlite
     # jpa: 使用 Spring Data JPA + H2 内存数据库（开发/测试）
@@ -11,6 +12,14 @@ minitb:
     sqlite:
       path: data/minitb.db  # SQLite 数据库文件路径
       auto-backup: false    # 是否自动备份
+  
+  # 数据源配置
+  datasource:
+    # IPMI 数据源配置
+    ipmi:
+      enabled: false              # 默认禁用，测试时启用
+      pull-interval: 30000        # 拉取间隔（毫秒），默认 30 秒
+      initial-delay: 10000        # 启动后延迟（毫秒），默认 10 秒
 
 # ============================================
 # Spring 配置
