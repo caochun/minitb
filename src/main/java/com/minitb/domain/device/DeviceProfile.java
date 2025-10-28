@@ -62,27 +62,22 @@ public class DeviceProfile {
     private DataSourceType dataSourceType = DataSourceType.MQTT;
     
     /**
-     * Prometheus 端点 URL（仅 PROMETHEUS 类型使用）
-     * 
-     * 示例: "http://localhost:9090"
-     * 用于 PrometheusDataPuller 连接 Prometheus 服务
-     */
-    private String prometheusEndpoint;
-    
-    /**
      * Prometheus 设备标识标签键（仅 PROMETHEUS 类型使用）
      * 
      * 指定使用哪个 Prometheus 标签来识别设备
-     * 示例: "instance", "job", "node", "host"
+     * 示例: "instance", "job", "node", "host", "gpu"
      * 
      * 工作原理:
      * 1. PromQL 查询返回多个时间序列，每个都有标签
      * 2. 使用此字段指定的标签键来区分不同设备的数据
-     * 3. Device.prometheusLabel 存储对应的标签值
+     * 3. Device.configuration (PrometheusDeviceConfiguration) 存储对应的标签值
      * 
-     * 例如: prometheusDeviceLabelKey = "instance"
-     *      Device A: prometheusLabel = "instance=server-01:9100"
-     *      Device B: prometheusLabel = "instance=server-02:9100"
+     * 例如: prometheusDeviceLabelKey = "gpu"
+     *      Device A: configuration.label = "gpu=0"
+     *      Device B: configuration.label = "gpu=1"
+     * 
+     * 注意：Prometheus endpoint 移到了 Device.configuration 中
+     *      每个设备可以连接不同的 Prometheus 服务器
      */
     private String prometheusDeviceLabelKey;
     

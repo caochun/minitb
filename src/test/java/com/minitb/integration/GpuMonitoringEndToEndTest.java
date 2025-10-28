@@ -5,6 +5,7 @@ import com.minitb.application.service.DeviceService;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -117,16 +118,24 @@ class GpuMonitoringEndToEndTest {
         Device gpu0 = deviceService.findById(gpu0DeviceId).orElseThrow();
         Device gpu1 = deviceService.findById(gpu1DeviceId).orElseThrow();
         
+        // 提取 Prometheus 配置
+        PrometheusDeviceConfiguration gpu0Config = 
+            (PrometheusDeviceConfiguration) gpu0.getConfiguration();
+        PrometheusDeviceConfiguration gpu1Config = 
+            (PrometheusDeviceConfiguration) gpu1.getConfiguration();
+        
         System.out.println("  GPU 0:");
         System.out.println("    - 设备名称: " + gpu0.getName());
         System.out.println("    - 设备 ID: " + gpu0.getId());
-        System.out.println("    - 标签映射: " + gpu0.getPrometheusLabel());
+        System.out.println("    - Prometheus 端点: " + gpu0Config.getEndpoint());
+        System.out.println("    - 标签映射: " + gpu0Config.getLabel());
         System.out.println("    - AccessToken: " + gpu0.getAccessToken());
         
         System.out.println("  GPU 1:");
         System.out.println("    - 设备名称: " + gpu1.getName());
         System.out.println("    - 设备 ID: " + gpu1.getId());
-        System.out.println("    - 标签映射: " + gpu1.getPrometheusLabel());
+        System.out.println("    - Prometheus 端点: " + gpu1Config.getEndpoint());
+        System.out.println("    - 标签映射: " + gpu1Config.getLabel());
         System.out.println("    - AccessToken: " + gpu1.getAccessToken());
         System.out.println();
         
@@ -363,7 +372,7 @@ class GpuMonitoringEndToEndTest {
                 .name("NVIDIA GPU Monitor (DCGM)")
                 .description("NVIDIA TITAN V GPU 监控配置")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint(PROMETHEUS_ENDPOINT)  // ← 使用 Prometheus 服务器地址
+                // 注意: prometheusEndpoint 已移到 Device.configuration 中
                 .prometheusDeviceLabelKey("gpu")  // 使用 gpu 标签区分设备
                 .strictMode(true)
                 .telemetryDefinitions(createGpuTelemetryDefinitions())
@@ -381,7 +390,11 @@ class GpuMonitoringEndToEndTest {
                 .type("NVIDIA_GPU")
                 .deviceProfileId(gpuProfileId)
                 .accessToken("gpu-0-token-" + System.currentTimeMillis())
-                .prometheusLabel("gpu=0")  // 标签映射
+                // 使用 PrometheusDeviceConfiguration
+                .configuration(PrometheusDeviceConfiguration.builder()
+                        .endpoint(PROMETHEUS_ENDPOINT)
+                        .label("gpu=0")
+                        .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         
@@ -402,7 +415,11 @@ class GpuMonitoringEndToEndTest {
                 .type("NVIDIA_GPU")
                 .deviceProfileId(gpuProfileId)
                 .accessToken("gpu-1-token-" + System.currentTimeMillis())
-                .prometheusLabel("gpu=1")  // 标签映射
+                // 使用 PrometheusDeviceConfiguration
+                .configuration(PrometheusDeviceConfiguration.builder()
+                        .endpoint(PROMETHEUS_ENDPOINT)
+                        .label("gpu=1")
+                        .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         

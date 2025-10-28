@@ -57,7 +57,8 @@ public class SqliteDeviceProfileRepositoryAdapter implements DeviceProfileReposi
             stmt.setInt(5, profile.isStrictMode() ? 1 : 0);
             stmt.setString(6, profile.getDataSourceType() != null ? 
                 profile.getDataSourceType().name() : null);
-            stmt.setString(7, profile.getPrometheusEndpoint());
+            // 注意: prometheusEndpoint 已移到 Device.configuration 中
+            stmt.setString(7, null);  // prometheus_endpoint 保留列但设为 null
             stmt.setString(8, profile.getPrometheusDeviceLabelKey());
             stmt.setLong(9, profile.getCreatedTime());
             stmt.setLong(10, System.currentTimeMillis());

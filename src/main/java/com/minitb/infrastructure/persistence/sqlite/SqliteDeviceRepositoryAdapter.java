@@ -38,7 +38,7 @@ public class SqliteDeviceRepositoryAdapter implements DeviceRepository {
         String sql = """
             INSERT OR REPLACE INTO device 
             (id, name, type, access_token, device_profile_id, 
-             prometheus_label, created_time, updated_time)
+             configuration, created_time, updated_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
         
@@ -49,7 +49,11 @@ public class SqliteDeviceRepositoryAdapter implements DeviceRepository {
             stmt.setString(4, device.getAccessToken());
             stmt.setString(5, device.getDeviceProfileId() != null ? 
                 device.getDeviceProfileId().toString() : null);
-            stmt.setString(6, device.getPrometheusLabel());
+            
+            // 序列化 configuration 为 JSON
+            String configJson = deviceMapper.serializeConfiguration(device.getConfiguration());
+            stmt.setString(6, configJson);
+            
             stmt.setLong(7, device.getCreatedTime());
             stmt.setLong(8, System.currentTimeMillis());
             

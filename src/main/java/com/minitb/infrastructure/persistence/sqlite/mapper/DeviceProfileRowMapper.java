@@ -44,7 +44,8 @@ public class DeviceProfileRowMapper {
         }
         
         // Prometheus 配置
-        builder.prometheusEndpoint(rs.getString("prometheus_endpoint"));
+        // 注意: prometheusEndpoint 已移到 Device.configuration 中
+        // builder.prometheusEndpoint(rs.getString("prometheus_endpoint"));
         builder.prometheusDeviceLabelKey(rs.getString("prometheus_device_label_key"));
         
         // 解析遥测定义 JSON

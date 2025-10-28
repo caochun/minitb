@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.minitb.application.service.DeviceService;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.protocol.PrometheusConfig;
 import com.minitb.infrastructure.transport.service.TransportService;
@@ -98,28 +99,37 @@ public class PrometheusDataPuller {
                 .orElseThrow(() -> new IllegalStateException(
                     "设备 " + device.getName() + " 的 DeviceProfile 不存在"));
         
-        // 2. 检查 Prometheus 配置
-        if (profile.getPrometheusEndpoint() == null || profile.getPrometheusEndpoint().isEmpty()) {
-            log.warn("设备 {} 的 DeviceProfile 未配置 Prometheus 端点", device.getName());
+        // 2. 检查设备配置
+        if (!(device.getConfiguration() instanceof PrometheusDeviceConfiguration)) {
+            log.warn("设备 {} 的配置不是 PrometheusDeviceConfiguration 类型，跳过", device.getName());
             return;
         }
         
-        if (device.getPrometheusLabel() == null || device.getPrometheusLabel().isEmpty()) {
-            log.warn("设备 {} 未配置 Prometheus 标签映射", device.getName());
+        PrometheusDeviceConfiguration config = 
+            (PrometheusDeviceConfiguration) device.getConfiguration();
+        
+        // 3. 验证配置完整性
+        if (config.getEndpoint() == null || config.getEndpoint().isEmpty()) {
+            log.warn("设备 {} 未配置 Prometheus 端点", device.getName());
             return;
         }
         
-        // 3. 解析设备的 Prometheus 标签
-        // prometheusLabel 格式: "instance=server-01:9100"
-        String[] labelParts = device.getPrometheusLabel().split("=", 2);
+        if (config.getLabel() == null || config.getLabel().isEmpty()) {
+            log.warn("设备 {} 未配置 Prometheus 标签", device.getName());
+            return;
+        }
+        
+        // 4. 解析设备的 Prometheus 标签
+        // label 格式: "gpu=0" 或 "instance=server-01:9100"
+        String[] labelParts = config.getLabel().split("=", 2);
         if (labelParts.length != 2) {
-            log.error("设备 {} 的 prometheusLabel 格式错误: {}", 
-                device.getName(), device.getPrometheusLabel());
+            log.error("设备 {} 的标签格式错误: {}", 
+                device.getName(), config.getLabel());
             return;
         }
         
-        String labelKey = labelParts[0].trim();    // "instance"
-        String labelValue = labelParts[1].trim();  // "server-01:9100"
+        String labelKey = labelParts[0].trim();    // "gpu" 或 "instance"
+        String labelValue = labelParts[1].trim();  // "0" 或 "server-01:9100"
         
         // 4. 遍历所有遥测定义，拉取数据
         Map<String, Object> telemetryData = new HashMap<>();
@@ -129,13 +139,13 @@ public class PrometheusDataPuller {
                 continue;
             }
             
-            PrometheusConfig config = telemetryDef.getPrometheusConfig();
-            String promQL = config.getPromQL();
+            PrometheusConfig promConfig = telemetryDef.getPrometheusConfig();
+            String promQL = promConfig.getPromQL();
             
             try {
-                // 5. 查询 Prometheus
+                // 5. 查询 Prometheus（使用设备配置中的 endpoint）
                 List<PrometheusQueryResult> results = queryPrometheus(
-                    profile.getPrometheusEndpoint(), 
+                    config.getEndpoint(), 
                     promQL
                 );
                 

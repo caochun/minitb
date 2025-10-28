@@ -99,7 +99,7 @@ public class SqliteConnectionManager {
                 type TEXT,
                 access_token TEXT UNIQUE NOT NULL,
                 device_profile_id TEXT,
-                prometheus_label TEXT,
+                configuration TEXT,
                 created_time INTEGER,
                 updated_time INTEGER,
                 FOREIGN KEY (device_profile_id) 
@@ -119,10 +119,11 @@ public class SqliteConnectionManager {
             ON device(device_profile_id)
         """;
         
-        String createDeviceLabelIndex = """
-            CREATE INDEX IF NOT EXISTS idx_device_prometheus_label 
-            ON device(prometheus_label)
-        """;
+        // 移除 prometheus_label 索引（该字段已移到 configuration 中）
+        // String createDeviceLabelIndex = """
+        //     CREATE INDEX IF NOT EXISTS idx_device_prometheus_label 
+        //     ON device(prometheus_label)
+        // """;
         
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createDeviceProfileTable);
@@ -133,7 +134,7 @@ public class SqliteConnectionManager {
             
             stmt.execute(createDeviceTokenIndex);
             stmt.execute(createDeviceProfileIdIndex);
-            stmt.execute(createDeviceLabelIndex);
+            // stmt.execute(createDeviceLabelIndex);  // 已注释，列不存在
             log.info("✓ 索引已创建");
         }
     }

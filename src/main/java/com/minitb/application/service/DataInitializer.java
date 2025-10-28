@@ -2,6 +2,7 @@ package com.minitb.application.service;
 
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -75,7 +76,7 @@ public class DataInitializer implements CommandLineRunner {
                 .name("NVIDIA GPU Monitor (DCGM)")
                 .description("NVIDIA TITAN V GPU 监控配置 - 从 Prometheus 拉取 DCGM 指标")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint("http://192.168.30.134:9090")
+                // 注意: prometheusEndpoint 已移到 Device.configuration 中
                 .prometheusDeviceLabelKey("gpu")
                 .strictMode(true)
                 .telemetryDefinitions(createGpuTelemetryDefinitions())
@@ -106,14 +107,18 @@ public class DataInitializer implements CommandLineRunner {
                 .type("NVIDIA_GPU")
                 .deviceProfileId(profileId)
                 .accessToken(accessToken)
-                .prometheusLabel(prometheusLabel)
+                // 使用 PrometheusDeviceConfiguration
+                .configuration(PrometheusDeviceConfiguration.builder()
+                        .endpoint("http://192.168.30.134:9090")
+                        .label(prometheusLabel)  // "gpu=0" 或 "gpu=1"
+                        .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         
         Device saved = deviceService.save(gpu);
         log.info("✓ Device 创建: {} (ID: {})", saved.getName(), saved.getId());
         log.info("  - AccessToken: {}", saved.getAccessToken());
-        log.info("  - Prometheus Label: {}", saved.getPrometheusLabel());
+        log.info("  - Prometheus Label: {}", prometheusLabel);
     }
     
     /**
