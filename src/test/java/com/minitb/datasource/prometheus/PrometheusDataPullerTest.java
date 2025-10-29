@@ -3,6 +3,7 @@ package com.minitb.datasource.prometheus;
 import com.minitb.application.service.DeviceService;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -52,7 +53,7 @@ class PrometheusDataPullerTest {
                 .id(DeviceProfileId.random())
                 .name("Test Prometheus Profile")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint("http://localhost:9090")
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("instance")
                 .telemetryDefinitions(createTestTelemetryDefinitions())
                 .build();
@@ -64,7 +65,10 @@ class PrometheusDataPullerTest {
                 .type("SERVER_MONITOR")
                 .deviceProfileId(testProfile.getId())
                 .accessToken("test-token-123")
-                .prometheusLabel("instance=test-server:9100")
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("instance=test-server:9100")
+                    .build())
                 .build();
     }
     

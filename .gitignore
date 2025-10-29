@@ -1,15 +1,25 @@
+# Maven
 target/
-data/
 *.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+
+# Logs
 *.log
+
+# Database
+data/
+*.db
+
+# Package Files
 *.jar
 *.war
 *.ear
-.idea/
-*.iml
+
+# OS
 .DS_Store
-
-
-
-
-minitb.db

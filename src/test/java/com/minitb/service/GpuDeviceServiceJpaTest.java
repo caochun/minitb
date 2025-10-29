@@ -3,6 +3,7 @@ package com.minitb.service;
 import com.minitb.application.service.DeviceService;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -66,7 +67,7 @@ class GpuDeviceServiceJpaTest {
         assertTrue(saved.getCreatedTime() > 0, "创建时间应被自动设置");
         assertEquals("NVIDIA GPU Monitor (DCGM)", saved.getName());
         assertEquals(DeviceProfile.DataSourceType.PROMETHEUS, saved.getDataSourceType());
-        assertEquals("http://192.168.30.134:9090", saved.getPrometheusEndpoint());
+        // prometheusEndpoint 已移到Device.configuration中
         assertEquals("gpu", saved.getPrometheusDeviceLabelKey());
         assertEquals(7, saved.getTelemetryDefinitions().size(), "应包含 7 个遥测指标");
         
@@ -74,7 +75,6 @@ class GpuDeviceServiceJpaTest {
         System.out.println("  - ID: " + saved.getId());
         System.out.println("  - 名称: " + saved.getName());
         System.out.println("  - 数据源: " + saved.getDataSourceType());
-        System.out.println("  - Prometheus 端点: " + saved.getPrometheusEndpoint());
         System.out.println("  - 遥测指标数量: " + saved.getTelemetryDefinitions().size());
         System.out.println();
         
@@ -112,7 +112,7 @@ class GpuDeviceServiceJpaTest {
         DeviceProfile profile2 = DeviceProfile.builder()
                 .name("CPU Monitor")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint("http://localhost:9090")
+                // prometheusEndpoint 已移到Device.configuration中
                 .telemetryDefinitions(List.of())
                 .strictMode(false)
                 .build();
@@ -144,10 +144,14 @@ class GpuDeviceServiceJpaTest {
                 .type("NVIDIA_GPU")
                 .deviceProfileId(profile.getId())
                 .accessToken("test-gpu-0-token")
-                .prometheusLabel("gpu=0")
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("gpu=0")
+                    .build())
                 .build();
         
         Device saved = deviceService.save(device);
+        PrometheusDeviceConfiguration savedConfig = (PrometheusDeviceConfiguration) saved.getConfiguration();
         
         // Then: 验证保存成功
         assertNotNull(saved.getId(), "设备 ID 不应为空");
@@ -155,7 +159,7 @@ class GpuDeviceServiceJpaTest {
         assertEquals("NVIDIA TITAN V - GPU 0", saved.getName());
         assertEquals("NVIDIA_GPU", saved.getType());
         assertEquals("test-gpu-0-token", saved.getAccessToken());
-        assertEquals("gpu=0", saved.getPrometheusLabel());
+        assertEquals("gpu=0", savedConfig.getLabel());
         assertEquals(profile.getId(), saved.getDeviceProfileId());
         
         System.out.println("✅ Device 创建成功:");
@@ -163,7 +167,7 @@ class GpuDeviceServiceJpaTest {
         System.out.println("  - 名称: " + saved.getName());
         System.out.println("  - 类型: " + saved.getType());
         System.out.println("  - AccessToken: " + saved.getAccessToken());
-        System.out.println("  - Prometheus 标签: " + saved.getPrometheusLabel());
+        System.out.println("  - Prometheus 标签: " + savedConfig.getLabel());
         System.out.println("  - DeviceProfile ID: " + saved.getDeviceProfileId());
         System.out.println();
         
@@ -238,11 +242,17 @@ class GpuDeviceServiceJpaTest {
         assertTrue(allDevices.size() >= 2, "应至少有 2 个设备");
         
         System.out.println("✅ 查询到 " + allDevices.size() + " 个 Device:");
-        allDevices.forEach(d -> 
-            System.out.println("  - " + d.getName() + 
-                             " (Token: " + d.getAccessToken() + 
-                             ", Label: " + d.getPrometheusLabel() + ")")
-        );
+        allDevices.forEach(d -> {
+            if (d.getConfiguration() instanceof PrometheusDeviceConfiguration) {
+                PrometheusDeviceConfiguration config = (PrometheusDeviceConfiguration) d.getConfiguration();
+                System.out.println("  - " + d.getName() + 
+                                 " (Token: " + d.getAccessToken() + 
+                                 ", Label: " + config.getLabel() + ")");
+            } else {
+                System.out.println("  - " + d.getName() + 
+                                 " (Token: " + d.getAccessToken() + ")");
+            }
+        });
         System.out.println();
     }
     
@@ -262,22 +272,28 @@ class GpuDeviceServiceJpaTest {
                 .type(original.getType())
                 .deviceProfileId(original.getDeviceProfileId())
                 .accessToken(original.getAccessToken())
-                .prometheusLabel("gpu=0-updated")
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("gpu=0-updated")
+                    .build())
                 .createdTime(original.getCreatedTime())
                 .build();
         
         Device saved = deviceService.save(updated);
+        PrometheusDeviceConfiguration savedConfig = (PrometheusDeviceConfiguration) saved.getConfiguration();
         
         // Then: 验证更新成功
         assertEquals(deviceId, saved.getId(), "ID 应保持不变");
         assertEquals("NVIDIA TITAN V - GPU 0 (Updated)", saved.getName());
-        assertEquals("gpu=0-updated", saved.getPrometheusLabel());
+        assertEquals("gpu=0-updated", savedConfig.getLabel());
+        
+        PrometheusDeviceConfiguration originalConfig = (PrometheusDeviceConfiguration) original.getConfiguration();
         
         System.out.println("✅ Device 更新成功:");
         System.out.println("  - 原名称: " + original.getName());
         System.out.println("  - 新名称: " + saved.getName());
-        System.out.println("  - 原标签: " + original.getPrometheusLabel());
-        System.out.println("  - 新标签: " + saved.getPrometheusLabel());
+        System.out.println("  - 原标签: " + originalConfig.getLabel());
+        System.out.println("  - 新标签: " + savedConfig.getLabel());
         System.out.println();
     }
     
@@ -340,18 +356,20 @@ class GpuDeviceServiceJpaTest {
         System.out.println("📋 步骤 2: 创建 GPU 0 设备...");
         Device gpu0 = createGpuDevice(savedProfile.getId(), 0);
         Device savedGpu0 = deviceService.save(gpu0);
+        PrometheusDeviceConfiguration gpu0Config = (PrometheusDeviceConfiguration) savedGpu0.getConfiguration();
         System.out.println("  ✓ Device 创建: " + savedGpu0.getName());
         System.out.println("    - AccessToken: " + savedGpu0.getAccessToken());
-        System.out.println("    - Prometheus Label: " + savedGpu0.getPrometheusLabel());
+        System.out.println("    - Prometheus Label: " + gpu0Config.getLabel());
         System.out.println();
         
         // Step 3: 创建 GPU 1
         System.out.println("📋 步骤 3: 创建 GPU 1 设备...");
         Device gpu1 = createGpuDevice(savedProfile.getId(), 1);
         Device savedGpu1 = deviceService.save(gpu1);
+        PrometheusDeviceConfiguration gpu1Config = (PrometheusDeviceConfiguration) savedGpu1.getConfiguration();
         System.out.println("  ✓ Device 创建: " + savedGpu1.getName());
         System.out.println("    - AccessToken: " + savedGpu1.getAccessToken());
-        System.out.println("    - Prometheus Label: " + savedGpu1.getPrometheusLabel());
+        System.out.println("    - Prometheus Label: " + gpu1Config.getLabel());
         System.out.println();
         
         // Step 4: 验证设备可通过 AccessToken 查询
@@ -368,9 +386,8 @@ class GpuDeviceServiceJpaTest {
         System.out.println("📋 步骤 5: 验证 Prometheus 配置...");
         Optional<DeviceProfile> profileCheck = deviceService.findProfileById(savedProfile.getId());
         assertTrue(profileCheck.isPresent());
-        assertEquals("http://192.168.30.134:9090", profileCheck.get().getPrometheusEndpoint());
+        // prometheusEndpoint 已移到Device.configuration中
         assertEquals("gpu", profileCheck.get().getPrometheusDeviceLabelKey());
-        System.out.println("  ✓ Prometheus 端点: " + profileCheck.get().getPrometheusEndpoint());
         System.out.println("  ✓ 设备标签键: " + profileCheck.get().getPrometheusDeviceLabelKey());
         System.out.println();
         
@@ -413,7 +430,7 @@ class GpuDeviceServiceJpaTest {
                 .name("NVIDIA GPU Monitor (DCGM)")
                 .description("NVIDIA TITAN V GPU 监控配置")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint("http://192.168.30.134:9090")
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("gpu")
                 .strictMode(true)
                 .telemetryDefinitions(createGpuTelemetryDefinitions())
@@ -426,7 +443,10 @@ class GpuDeviceServiceJpaTest {
                 .type("NVIDIA_GPU")
                 .deviceProfileId(profileId)
                 .accessToken("test-gpu-" + gpuIndex + "-token-" + System.currentTimeMillis())
-                .prometheusLabel("gpu=" + gpuIndex)
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://192.168.30.134:9090")
+                    .label("gpu=" + gpuIndex)
+                    .build())
                 .build();
     }
     

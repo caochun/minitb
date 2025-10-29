@@ -32,12 +32,25 @@ public class MiniTBConfiguration {
     }
     
     /**
+     * Actor 系统
+     * 必须先于RuleEngineService初始化
+     */
+    @Bean
+    public MiniTbActorSystem actorSystem() {
+        log.info("初始化 Actor 系统（线程池大小: 5）...");
+        return new MiniTbActorSystem(5);
+    }
+    
+    /**
      * 规则引擎服务
      */
     @Bean
-    public RuleEngineService ruleEngineService(TelemetryStorage storage) {
+    public RuleEngineService ruleEngineService(TelemetryStorage storage, MiniTbActorSystem actorSystem) {
         log.info("初始化规则引擎服务...");
         RuleEngineService service = new RuleEngineService();
+        
+        // ⭐ 设置Actor系统（必须在设置规则链之前）
+        service.setActorSystem(actorSystem);
         
         // 创建根规则链
         RuleChain rootRuleChain = new RuleChain("Root Rule Chain");
@@ -52,15 +65,6 @@ public class MiniTBConfiguration {
         service.printRuleChains();
         
         return service;
-    }
-    
-    /**
-     * Actor 系统
-     */
-    @Bean
-    public MiniTbActorSystem actorSystem() {
-        log.info("初始化 Actor 系统（线程池大小: 5）...");
-        return new MiniTbActorSystem(5);
     }
 }
 

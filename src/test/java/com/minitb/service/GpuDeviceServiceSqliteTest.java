@@ -3,6 +3,7 @@ package com.minitb.service;
 import com.minitb.application.service.DeviceService;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -95,14 +96,15 @@ class GpuDeviceServiceSqliteTest {
         gpu0DeviceId = saved.getId();
         
         // Then: 验证保存成功
+        PrometheusDeviceConfiguration gpu0Config = (PrometheusDeviceConfiguration) saved.getConfiguration();
         assertNotNull(saved.getId());
         assertEquals("NVIDIA TITAN V - GPU 0", saved.getName());
-        assertEquals("gpu=0", saved.getPrometheusLabel());
+        assertEquals("gpu=0", gpu0Config.getLabel());
         
         System.out.println("✅ GPU 0 创建成功 (SQLite):");
         System.out.println("  - ID: " + saved.getId());
         System.out.println("  - 名称: " + saved.getName());
-        System.out.println("  - Prometheus Label: " + saved.getPrometheusLabel());
+        System.out.println("  - Prometheus Label: " + gpu0Config.getLabel());
         System.out.println();
     }
     
@@ -120,14 +122,15 @@ class GpuDeviceServiceSqliteTest {
         gpu1DeviceId = saved.getId();
         
         // Then: 验证保存成功
+        PrometheusDeviceConfiguration gpu1Config = (PrometheusDeviceConfiguration) saved.getConfiguration();
         assertNotNull(saved.getId());
         assertEquals("NVIDIA TITAN V - GPU 1", saved.getName());
-        assertEquals("gpu=1", saved.getPrometheusLabel());
+        assertEquals("gpu=1", gpu1Config.getLabel());
         
         System.out.println("✅ GPU 1 创建成功 (SQLite):");
         System.out.println("  - ID: " + saved.getId());
         System.out.println("  - 名称: " + saved.getName());
-        System.out.println("  - Prometheus Label: " + saved.getPrometheusLabel());
+        System.out.println("  - Prometheus Label: " + gpu1Config.getLabel());
         System.out.println();
     }
     
@@ -188,9 +191,14 @@ class GpuDeviceServiceSqliteTest {
         assertTrue(allDevices.size() >= 2, "应至少有 2 个设备（GPU 0 和 GPU 1）");
         
         System.out.println("✅ 查询到 " + allDevices.size() + " 个设备 (SQLite):");
-        allDevices.forEach(d -> 
-            System.out.println("  - " + d.getName() + " (Label: " + d.getPrometheusLabel() + ")")
-        );
+        allDevices.forEach(d -> {
+            if (d.getConfiguration() instanceof PrometheusDeviceConfiguration) {
+                PrometheusDeviceConfiguration config = (PrometheusDeviceConfiguration) d.getConfiguration();
+                System.out.println("  - " + d.getName() + " (Label: " + config.getLabel() + ")");
+            } else {
+                System.out.println("  - " + d.getName() + " (Type: " + d.getConfiguration().getConfigurationType() + ")");
+            }
+        });
         System.out.println();
     }
     
@@ -261,26 +269,32 @@ class GpuDeviceServiceSqliteTest {
                 .type(original.get().getType())
                 .deviceProfileId(original.get().getDeviceProfileId())
                 .accessToken(original.get().getAccessToken())
-                .prometheusLabel("gpu=0-updated")
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://192.168.30.134:9090")
+                    .label("gpu=0-updated")
+                    .build())
                 .createdTime(original.get().getCreatedTime())
                 .build();
         
         Device saved = deviceService.save(updated);
+        PrometheusDeviceConfiguration savedConfig = (PrometheusDeviceConfiguration) saved.getConfiguration();
         
         // Then: 验证更新成功
         assertEquals("NVIDIA TITAN V - GPU 0 (Updated)", saved.getName());
-        assertEquals("gpu=0-updated", saved.getPrometheusLabel());
+        assertEquals("gpu=0-updated", savedConfig.getLabel());
         
         // 再次查询验证
         Optional<Device> reloaded = deviceService.findById(gpu0DeviceId);
         assertTrue(reloaded.isPresent());
         assertEquals("NVIDIA TITAN V - GPU 0 (Updated)", reloaded.get().getName());
         
+        PrometheusDeviceConfiguration originalConfig = (PrometheusDeviceConfiguration) original.get().getConfiguration();
+        
         System.out.println("✅ 设备更新成功 (SQLite):");
         System.out.println("  - 原名称: " + original.get().getName());
         System.out.println("  - 新名称: " + saved.getName());
-        System.out.println("  - 原标签: " + original.get().getPrometheusLabel());
-        System.out.println("  - 新标签: " + saved.getPrometheusLabel());
+        System.out.println("  - 原标签: " + originalConfig.getLabel());
+        System.out.println("  - 新标签: " + savedConfig.getLabel());
         System.out.println();
     }
     
@@ -334,7 +348,7 @@ class GpuDeviceServiceSqliteTest {
                 .name("NVIDIA GPU Monitor (DCGM)")
                 .description("NVIDIA TITAN V GPU 监控配置")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint("http://192.168.30.134:9090")
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("gpu")
                 .strictMode(true)
                 .telemetryDefinitions(createGpuTelemetryDefinitions())
@@ -348,7 +362,10 @@ class GpuDeviceServiceSqliteTest {
                 .type("NVIDIA_GPU")
                 .deviceProfileId(profileId)
                 .accessToken("sqlite-test-gpu-" + gpuIndex + "-token-" + System.currentTimeMillis())
-                .prometheusLabel("gpu=" + gpuIndex)
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://192.168.30.134:9090")
+                    .label("gpu=" + gpuIndex)
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
     }

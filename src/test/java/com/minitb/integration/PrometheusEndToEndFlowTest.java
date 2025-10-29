@@ -5,6 +5,7 @@ import com.minitb.application.service.DeviceService;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -273,11 +274,13 @@ class PrometheusEndToEndFlowTest {
         // 获取设备信息
         Device device = deviceService.findById(testDeviceId).orElseThrow();
         
+        PrometheusDeviceConfiguration config = (PrometheusDeviceConfiguration) device.getConfiguration();
+        
         System.out.println("📋 设备信息:");
         System.out.println("  - ID: " + device.getId());
         System.out.println("  - 名称: " + device.getName());
         System.out.println("  - AccessToken: " + device.getAccessToken());
-        System.out.println("  - Prometheus 标签: " + device.getPrometheusLabel());
+        System.out.println("  - Prometheus 标签: " + config.getLabel());
         System.out.println();
         
         // 计数当前数据量
@@ -412,10 +415,11 @@ class PrometheusEndToEndFlowTest {
         System.out.println();
         
         System.out.println("  2. Device 配置:");
-        System.out.println("     - prometheusLabel: " + device.getPrometheusLabel());
+        PrometheusDeviceConfiguration deviceConfig = (PrometheusDeviceConfiguration) device.getConfiguration();
+        System.out.println("     - label: " + deviceConfig.getLabel());
         
         // 解析标签
-        String[] parts = device.getPrometheusLabel().split("=", 2);
+        String[] parts = deviceConfig.getLabel().split("=", 2);
         String labelKey = parts[0];
         String labelValue = parts[1];
         
@@ -468,7 +472,7 @@ class PrometheusEndToEndFlowTest {
                 .name("E2E Test Profile")
                 .description("端到端测试用 Profile")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint(PROMETHEUS_ENDPOINT)
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("instance")
                 .strictMode(true)
                 .telemetryDefinitions(createTelemetryDefinitions())
@@ -486,7 +490,10 @@ class PrometheusEndToEndFlowTest {
                 .type("SERVER_MONITOR_E2E")
                 .deviceProfileId(testProfileId)
                 .accessToken("e2e-test-token-" + System.currentTimeMillis())  // 唯一 token
-                .prometheusLabel("instance=" + NODE_EXPORTER_INSTANCE)
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint(PROMETHEUS_ENDPOINT)
+                    .label("instance=" + NODE_EXPORTER_INSTANCE)
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         

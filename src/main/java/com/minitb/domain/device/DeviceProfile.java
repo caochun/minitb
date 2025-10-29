@@ -1,6 +1,8 @@
 package com.minitb.domain.device;
 
+import com.minitb.domain.alarm.AlarmRule;
 import com.minitb.domain.id.DeviceProfileId;
+import com.minitb.domain.id.RuleChainId;
 import com.minitb.domain.telemetry.DataType;
 import com.minitb.domain.protocol.PrometheusConfig;
 import lombok.AllArgsConstructor;
@@ -46,6 +48,28 @@ public class DeviceProfile {
      */
     @Builder.Default
     private List<TelemetryDefinition> telemetryDefinitions = new ArrayList<>();
+    
+    /**
+     * 告警规则列表
+     */
+    @Builder.Default
+    private List<AlarmRule> alarmRules = new ArrayList<>();
+    
+    /**
+     * 默认规则链ID
+     * 如果设置，来自此DeviceProfile的设备的消息将路由到指定的规则链
+     * 如果为null，则使用根规则链（Root Rule Chain）
+     * 
+     * 这允许不同类型的设备使用不同的规则链进行数据处理
+     */
+    private RuleChainId defaultRuleChainId;
+    
+    /**
+     * 默认队列名称
+     * 用于消息队列的负载均衡和优先级管理
+     * 如果为null，则使用"Main"队列
+     */
+    private String defaultQueueName;
     
     /**
      * 是否严格模式
@@ -142,6 +166,25 @@ public class DeviceProfile {
         // 先移除旧的，再添加新的
         removeTelemetryDefinition(telemetryDefinition.getKey());
         addTelemetryDefinition(telemetryDefinition);
+    }
+    
+    /**
+     * 添加告警规则
+     */
+    public void addAlarmRule(AlarmRule rule) {
+        if (this.alarmRules == null) {
+            this.alarmRules = new ArrayList<>();
+        }
+        this.alarmRules.add(rule);
+    }
+    
+    /**
+     * 移除指定的告警规则
+     */
+    public void removeAlarmRule(String ruleId) {
+        if (alarmRules != null) {
+            alarmRules.removeIf(rule -> rule.getId().equals(ruleId));
+        }
     }
     
     /**
