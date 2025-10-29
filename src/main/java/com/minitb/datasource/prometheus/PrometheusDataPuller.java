@@ -50,9 +50,10 @@ public class PrometheusDataPuller {
     
     /**
      * 定时拉取所有 Prometheus 设备的数据
-     * 每 2 秒执行一次
+     * 拉取间隔和延迟时间从配置文件读取: minitb.datasource.prometheus.pull-interval 和 initial-delay
      */
-    @Scheduled(fixedRate = 2000, initialDelay = 3000)
+    @Scheduled(fixedRateString = "${minitb.datasource.prometheus.pull-interval:2000}", 
+               initialDelayString = "${minitb.datasource.prometheus.initial-delay:3000}")
     public void pullAllPrometheusDevices() {
         try {
             // 1. 获取所有 Prometheus 类型的设备

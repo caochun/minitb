@@ -469,13 +469,13 @@ public class DataInitializer implements CommandLineRunner {
                 .protocolConfig(IpmiConfig.builder().sensorName("DIMMG0_TEMP").build())
                 .build());
         
-        // 主板温度
+        // 主板温度（使用 M.2 温度传感器）
         defs.add(TelemetryDefinition.builder()
                 .key("motherboard_temperature")
                 .displayName("主板温度")
                 .dataType(DataType.DOUBLE)
                 .unit("°C")
-                .protocolConfig(IpmiConfig.builder().sensorName("MB_TEMP").build())
+                .protocolConfig(IpmiConfig.builder().sensorName("M2_AMB_TEMP").build())
                 .build());
         
         return defs;

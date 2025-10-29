@@ -153,7 +153,7 @@ public class IpmiDataPuller {
             IpmiConfig ipmiConfig = (IpmiConfig) telemetryDef.getProtocolConfig();
             String sensorName = ipmiConfig.getSensorName();
             
-            SensorReading reading = sensorData.get(sensorName);
+            SensorReading reading = findSensorReading(sensorData, sensorName);
             if (reading != null && reading.isValid()) {
                 telemetryData.put(telemetryDef.getKey(), reading.getValue());
                 log.info("  ✓ {} = {}", telemetryDef.getKey(), reading.getValue());
@@ -264,6 +264,79 @@ public class IpmiDataPuller {
             log.debug("无法解析传感器值: {} = {}", name, valueStr);
             return null;
         }
+    }
+
+    /**
+     * 根据传感器名查找读数，包含常见别名与宽松匹配。
+     */
+    private SensorReading findSensorReading(Map<String, SensorReading> sensorData, String sensorName) {
+        if (sensorData == null || sensorName == null) {
+            return null;
+        }
+        // 1) 精确匹配（区分大小写）
+        SensorReading reading = sensorData.get(sensorName);
+        if (reading != null) return reading;
+
+        // 2) 不区分大小写匹配
+        for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(sensorName)) {
+                return entry.getValue();
+            }
+        }
+
+        // 3) 规范化名称后匹配（去除非字母数字、下划线转空）
+        String normalizedTarget = normalizeName(sensorName);
+        for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
+            if (normalizeName(entry.getKey()).equals(normalizedTarget)) {
+                return entry.getValue();
+            }
+        }
+
+        // 4) 常见别名匹配（主板温度等）
+        List<String> aliases = getAliasesFor(sensorName);
+        if (!aliases.isEmpty()) {
+            for (String alias : aliases) {
+                // 先尝试精确
+                reading = sensorData.get(alias);
+                if (reading != null) return reading;
+                // 再尝试不区分大小写
+                for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
+                    if (entry.getKey().equalsIgnoreCase(alias)) {
+                        return entry.getValue();
+                    }
+                }
+                // 规范化后比较
+                String normAlias = normalizeName(alias);
+                for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
+                    if (normalizeName(entry.getKey()).equals(normAlias)) {
+                        return entry.getValue();
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String normalizeName(String name) {
+        return name.toUpperCase().replaceAll("[^A-Z0-9]", "");
+    }
+
+    private List<String> getAliasesFor(String sensorName) {
+        String upper = sensorName == null ? "" : sensorName.toUpperCase();
+        // 针对常见主板温度传感器名做别名处理
+        if (upper.equals("MB_TEMP") || upper.contains("MB") && upper.contains("TEMP") || upper.contains("MOTHER") && upper.contains("TEMP")) {
+            return Arrays.asList(
+                    "MB TEMP", "SYS_TEMP", "SYS TEMP", "SYSTEM TEMP", "SYSTEM_TEMP",
+                    "SYSTEM BOARD TEMP", "BASEBOARD TEMP", "BOARD TEMP", "SYSTEMBOARD TEMP",
+                    "INLET TEMP", "EXHAUST TEMP"
+            );
+        }
+        // 也给 DIMM 温度提供一些可能的别名（可扩展）
+        if (upper.startsWith("DIMM") && upper.contains("TEMP")) {
+            return Arrays.asList("MEM TEMP", "MEMORY TEMP");
+        }
+        return Collections.emptyList();
     }
     
     /**

@@ -18,8 +18,13 @@ minitb:
     # IPMI 数据源配置
     ipmi:
       enabled: true               # ⭐ 启用 IPMI 数据拉取（用于 BMC 监控）
-      pull-interval: 30000        # 拉取间隔（毫秒），默认 30 秒
+      pull-interval: 10000        # 拉取间隔（毫秒），10 秒
       initial-delay: 10000        # 启动后延迟（毫秒），默认 10 秒
+    # Prometheus 数据源配置
+    prometheus:
+      enabled: true               # ⭐ 启用 Prometheus 数据拉取（用于 GPU/系统监控）
+      pull-interval: 10000        # 拉取间隔（毫秒），10 秒
+      initial-delay: 3000         # 启动后延迟（毫秒），默认 3 秒
 
 # ============================================
 # Spring 配置
