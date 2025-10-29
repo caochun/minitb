@@ -1,11 +1,9 @@
 package com.minitb.domain.relation;
 
-import com.minitb.domain.id.DeviceId;
+import com.minitb.domain.id.EntityId;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.UUID;
 
 /**
  * 实体关系
@@ -13,7 +11,10 @@ import java.util.UUID;
  * 用于表示实体之间的关系，例如:
  * - Device → Asset (Contains)
  * - Asset → Customer (Manages)
- * - Dashboard → Device (Uses)
+ * 
+ * 设计说明：
+ * - 使用 EntityId 强类型，确保类型安全
+ * - EntityId 包含 UUID 和 EntityType，避免类型不匹配
  */
 @Data
 @NoArgsConstructor
@@ -21,40 +22,25 @@ import java.util.UUID;
 public class EntityRelation {
     
     // 常用关系类型常量
-    public static final String CONTAINS_TYPE = "Contains";
-    public static final String MANAGES_TYPE = "Manages";
-    public static final String USES_TYPE = "Uses";
-    public static final String BELONGS_TO_TYPE = "BelongsTo";
+    public static final String CONTAINS = "Contains";
+    public static final String MANAGES = "Manages";
+    public static final String USES = "Uses";
+    public static final String BELONGS_TO = "BelongsTo";
     
     /**
-     * 关系起点实体ID
+     * 关系起点实体
      */
-    private UUID fromId;
+    private EntityId from;
     
     /**
-     * 关系起点实体类型
+     * 关系终点实体
      */
-    private String fromType;
-    
-    /**
-     * 关系终点实体ID
-     */
-    private UUID toId;
-    
-    /**
-     * 关系终点实体类型
-     */
-    private String toType;
+    private EntityId to;
     
     /**
      * 关系类型 (Contains, Manages, Uses等)
      */
-    private String relationType;
-    
-    /**
-     * 关系类型组
-     */
-    private RelationTypeGroup typeGroup;
+    private String type;
     
     /**
      * 创建时间
@@ -62,23 +48,12 @@ public class EntityRelation {
     private long createdTime;
     
     /**
-     * 构造方法 - 创建通用类型组的关系
+     * 便捷构造方法
      */
-    public EntityRelation(UUID fromId, String fromType, UUID toId, String toType, String relationType) {
-        this(fromId, fromType, toId, toType, relationType, RelationTypeGroup.COMMON);
-    }
-    
-    /**
-     * 构造方法 - 指定类型组
-     */
-    public EntityRelation(UUID fromId, String fromType, UUID toId, String toType, 
-                          String relationType, RelationTypeGroup typeGroup) {
-        this.fromId = fromId;
-        this.fromType = fromType;
-        this.toId = toId;
-        this.toType = toType;
-        this.relationType = relationType;
-        this.typeGroup = typeGroup;
+    public EntityRelation(EntityId from, EntityId to, String type) {
+        this.from = from;
+        this.to = to;
+        this.type = type;
         this.createdTime = System.currentTimeMillis();
     }
     
@@ -86,18 +61,19 @@ public class EntityRelation {
      * 生成关系的唯一键
      */
     public String getKey() {
-        return String.format("%s_%s_%s_%s_%s_%s", 
-            fromId, fromType, toId, toType, relationType, typeGroup);
+        return String.format("%s_%s_%s_%s_%s", 
+            from.getId(), from.getEntityType(), 
+            to.getId(), to.getEntityType(), 
+            type);
     }
     
     /**
      * 判断是否是反向关系
      */
     public boolean isReverse(EntityRelation other) {
-        return this.fromId.equals(other.toId) && 
-               this.toId.equals(other.fromId) &&
-               this.relationType.equals(other.relationType) &&
-               this.typeGroup.equals(other.typeGroup);
+        return this.from.equals(other.to) && 
+               this.to.equals(other.from) &&
+               this.type.equals(other.type);
     }
 }
 

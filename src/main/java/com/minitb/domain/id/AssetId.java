@@ -4,14 +4,8 @@ import java.util.UUID;
 
 /**
  * 资产ID
- * 
- * 改进点：
- * 1. 不可变ID（继承自UUIDBased）
- * 2. 缓存hashCode
- * 3. 工厂方法
- * 4. 类型安全（与DeviceId区分）
  */
-public class AssetId extends UUIDBased {
+public class AssetId extends EntityId {
     
     private static final long serialVersionUID = 1L;
     

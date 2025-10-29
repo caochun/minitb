@@ -8,8 +8,8 @@ import com.minitb.actor.msg.TransportToDeviceMsg;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.telemetry.*;
-import com.minitb.domain.messaging.TbMsg;
-import com.minitb.domain.messaging.TbMsgType;
+import com.minitb.domain.messaging.Message;
+import com.minitb.domain.messaging.MessageType;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DeviceActor implements MiniTbActor {
     
     private static final String RULE_ENGINE_ACTOR_ID = "RuleEngineActor";
+    private static final String ACTOR_ID_PREFIX = "Device:";
     
     private final DeviceId deviceId;
     private final Device device;
@@ -92,9 +93,9 @@ public class DeviceActor implements MiniTbActor {
         // 解析 JSON 为强类型数据
         List<TsKvEntry> tsKvEntries = parseJsonToKvEntries(msg.getPayload());
         
-        // 创建 TbMsg（包含强类型数据）
-        TbMsg tbMsg = TbMsg.newMsg(
-                TbMsgType.POST_TELEMETRY_REQUEST,
+        // 创建 Message（包含强类型数据）
+        Message tbMsg = Message.newMsg(
+                MessageType.POST_TELEMETRY_REQUEST,
                 deviceId,
                 null,  // metaData
                 msg.getPayload(),
@@ -211,7 +212,17 @@ public class DeviceActor implements MiniTbActor {
     
     @Override
     public String getActorId() {
-        return "Device:" + deviceId.getId().toString();
+        return actorIdFor(deviceId);
+    }
+    
+    /**
+     * 静态工厂方法：根据 DeviceId 生成 Actor ID
+     * 
+     * @param deviceId 设备ID
+     * @return Actor ID
+     */
+    public static String actorIdFor(DeviceId deviceId) {
+        return ACTOR_ID_PREFIX + deviceId.getId().toString();
     }
     
     /**

@@ -1,0 +1,85 @@
+# ============================================
+# MiniTB 配置
+# ============================================
+minitb:
+  # 存储配置
+  storage:
+    # 存储类型: jpa | sqlite
+    # jpa: 使用 Spring Data JPA + H2 内存数据库（开发/测试）
+    # sqlite: 使用 SQLite 文件数据库（生产/嵌入式）
+    type: sqlite  # ⭐ 改为 SQLite
+    
+    sqlite:
+      path: data/minitb.db  # SQLite 数据库文件路径
+      auto-backup: false    # 是否自动备份
+  
+  # 数据源配置
+  datasource:
+    # IPMI 数据源配置
+    ipmi:
+      enabled: true               # ⭐ 启用 IPMI 数据拉取（用于 BMC 监控）
+      pull-interval: 30000        # 拉取间隔（毫秒），默认 30 秒
+      initial-delay: 10000        # 启动后延迟（毫秒），默认 10 秒
+
+# ============================================
+# Spring 配置
+# ============================================
+spring:
+  application:
+    name: minitb
+  
+  # Web 服务器配置
+  web:
+    server:
+      port: 8080  # HTTP 端口
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+          no-store: true
+          must-revalidate: true
+  
+  # ⭐ 使用 SQLite 时禁用 JPA 自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  
+  # 数据源配置（仅当 storage.type=jpa 时生效）
+  datasource:
+    url: jdbc:h2:mem:minitb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  # JPA 配置（仅当 storage.type=jpa 时生效）
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop  # 开发环境：每次启动重建表
+    show-sql: false          # 不显示 SQL（避免日志过多）
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: false
+  
+  # H2 控制台（仅当使用 JPA 时）
+  h2:
+    console:
+      enabled: false  # ⭐ 使用 SQLite 时禁用
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+# ============================================
+# 日志配置
+# ============================================
+logging:
+  level:
+    root: INFO
+    com.minitb: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+    io.netty: WARN
+
+

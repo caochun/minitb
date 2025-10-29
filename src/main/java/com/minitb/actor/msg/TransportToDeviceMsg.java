@@ -13,7 +13,7 @@ import lombok.Data;
  * 
  * 职责:
  * - 携带从传输层(MQTT/HTTP)接收到的原始数据
- * - DeviceActor 会解析 payload，创建 TbMsg (包含业务消息类型)
+ * - DeviceActor 会解析 payload，创建 Message (包含业务消息类型)
  * - 然后转发给 RuleEngineActor
  */
 @Data

@@ -6,7 +6,7 @@ package com.minitb.actor;
  * 
  * 设计说明:
  * Actor 消息类型 (ActorMsgType) 用于 Actor 系统的消息路由，决定"消息发给哪个 Actor"
- * 业务消息类型 (TbMsgType) 用于业务逻辑处理，决定"消息内容是什么类型的数据"
+ * 业务消息类型 (MessageType) 用于业务逻辑处理，决定"消息内容是什么类型的数据"
  * 
  * 类比: Actor 消息是信封(决定地址)，业务消息是信件内容(决定内容类型)
  */

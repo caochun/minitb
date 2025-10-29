@@ -1,0 +1,20 @@
+# SQLite 测试配置
+minitb:
+  storage:
+    type: sqlite
+    sqlite:
+      path: target/test-sqlite.db  # 测试数据库路径
+
+# 禁用 JPA（使用 SQLite 时不需要）
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+logging:
+  level:
+    com.minitb: DEBUG
+    com.minitb.infrastructure.persistence.sqlite: TRACE
+
+

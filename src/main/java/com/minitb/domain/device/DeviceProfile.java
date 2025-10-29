@@ -62,6 +62,26 @@ public class DeviceProfile {
     private DataSourceType dataSourceType = DataSourceType.MQTT;
     
     /**
+     * Prometheus 设备标识标签键（仅 PROMETHEUS 类型使用）
+     * 
+     * 指定使用哪个 Prometheus 标签来识别设备
+     * 示例: "instance", "job", "node", "host", "gpu"
+     * 
+     * 工作原理:
+     * 1. PromQL 查询返回多个时间序列，每个都有标签
+     * 2. 使用此字段指定的标签键来区分不同设备的数据
+     * 3. Device.configuration (PrometheusDeviceConfiguration) 存储对应的标签值
+     * 
+     * 例如: prometheusDeviceLabelKey = "gpu"
+     *      Device A: configuration.label = "gpu=0"
+     *      Device B: configuration.label = "gpu=1"
+     * 
+     * 注意：Prometheus endpoint 移到了 Device.configuration 中
+     *      每个设备可以连接不同的 Prometheus 服务器
+     */
+    private String prometheusDeviceLabelKey;
+    
+    /**
      * 创建时间
      */
     private long createdTime;
@@ -131,6 +151,7 @@ public class DeviceProfile {
         MQTT,           // MQTT 推送
         HTTP,           // HTTP 推送
         PROMETHEUS,     // Prometheus 拉取
+        IPMI,           // IPMI 拉取（ipmitool）
         COAP            // CoAP 推送
     }
 }

@@ -1,324 +1,308 @@
 package com.minitb.datasource.prometheus;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.minitb.application.service.DeviceService;
+import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
-import com.minitb.domain.id.DeviceProfileId;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
-import com.minitb.dao.device.DeviceService;
-import com.minitb.transport.service.TransportService;
+import com.minitb.domain.protocol.PrometheusConfig;
+import com.minitb.infrastructure.transport.service.TransportService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
- * Prometheus数据拉取器
+ * Prometheus 数据拉取器
+ * 
  * 职责：
- * 1. 定时从Prometheus查询设备数据
- * 2. 将Prometheus格式转为JSON
- * 3. 模拟MQTT消息，注入到TransportService
+ * 1. 定时从 Prometheus 拉取指标数据
+ * 2. 根据标签映射将数据关联到具体设备
+ * 3. 通过 TransportService.processTelemetry() 统一入口处理数据
+ * 
+ * 设计原理：
+ * - Prometheus 是 Pull 模式，没有设备主动连接
+ * - 通过 Device.prometheusLabel 字段建立标签映射
+ * - 使用 Device.accessToken 作为内部标识符
+ * - 复用 TransportService 的统一数据处理流程
  */
+@Component
+@RequiredArgsConstructor
 @Slf4j
 public class PrometheusDataPuller {
     
-    private final String prometheusUrl;
-    private final TransportService transportService;
     private final DeviceService deviceService;
-    private final ScheduledExecutorService scheduler;
-    private final Map<String, DeviceMetricConfig> deviceConfigs;
-    private final Map<String, DeviceProfileId> deviceProfileMap;  // deviceId -> profileId
-    private final HttpClient httpClient;
-    
-    public PrometheusDataPuller(String prometheusUrl, 
-                                TransportService transportService,
-                                DeviceService deviceService) {
-        this.prometheusUrl = prometheusUrl;
-        this.transportService = transportService;
-        this.deviceService = deviceService;
-        this.scheduler = Executors.newScheduledThreadPool(1);
-        this.deviceConfigs = new ConcurrentHashMap<>();
-        this.deviceProfileMap = new ConcurrentHashMap<>();
-        this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
-        
-        log.info("Prometheus数据拉取器初始化完成，目标: {}", prometheusUrl);
-    }
+    private final TransportService transportService;
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final Gson gson = new Gson();
     
     /**
-     * 使用 DeviceProfile 注册设备（推荐方式）
-     * @param deviceId 设备ID
-     * @param accessToken 设备token
-     * @param profileId DeviceProfile ID
+     * 定时拉取所有 Prometheus 设备的数据
+     * 每 2 秒执行一次
      */
-    public void registerDeviceWithProfile(String deviceId, String accessToken, DeviceProfileId profileId) {
-        Optional<DeviceProfile> profileOpt = deviceService.findProfileById(profileId);
-        if (profileOpt.isEmpty()) {
-            log.error("找不到配置文件: {}", profileId);
-            return;
-        }
-        
-        DeviceProfile profile = profileOpt.get();
-        
-        // 从 DeviceProfile 提取 Prometheus 指标
-        List<String> metrics = new ArrayList<>();
-        Map<String, String> metricToPromQL = new HashMap<>();
-        
-        for (TelemetryDefinition def : profile.getTelemetryDefinitions()) {
-            if (def.isPrometheus()) {
-                metrics.add(def.getKey());
-                metricToPromQL.put(def.getKey(), def.getPrometheusConfig().getPromQL());
+    @Scheduled(fixedRate = 2000, initialDelay = 3000)
+    public void pullAllPrometheusDevices() {
+        try {
+            // 1. 获取所有 Prometheus 类型的设备
+            List<Device> prometheusDevices = deviceService.findAll().stream()
+                    .filter(this::isPrometheusDevice)
+                    .collect(Collectors.toList());
+            
+            if (prometheusDevices.isEmpty()) {
+                log.debug("没有 Prometheus 设备需要拉取数据");
+                return;
             }
-        }
-        
-        if (metrics.isEmpty()) {
-            log.warn("配置文件 {} 中没有 Prometheus 遥测定义", profileId);
-            return;
-        }
-        
-        DeviceMetricConfig config = new DeviceMetricConfig(deviceId, accessToken, metrics);
-        config.setPromQLMap(metricToPromQL);  // 保存 PromQL 映射
-        deviceConfigs.put(deviceId, config);
-        deviceProfileMap.put(deviceId, profileId);
-        
-        log.info("注册Prometheus设备（使用配置文件）: deviceId={}, profile={}, 指标数={}", 
-                 deviceId, profile.getName(), metrics.size());
-        metrics.forEach(m -> log.info("  - {} -> {}", m, metricToPromQL.get(m)));
-    }
-    
-    /**
-     * 注册需要拉取的设备配置（旧版API，兼容性）
-     * @deprecated 建议使用 registerDeviceWithProfile
-     */
-    @Deprecated
-    public void registerDevice(String deviceId, String accessToken, 
-                               List<String> metrics) {
-        DeviceMetricConfig config = new DeviceMetricConfig(deviceId, accessToken, metrics);
-        deviceConfigs.put(deviceId, config);
-        log.info("注册Prometheus数据源设备（旧版API）: deviceId={}, token={}, 指标={}", 
-                 deviceId, accessToken, metrics);
-    }
-    
-    /**
-     * 启动定时拉取任务
-     * @param intervalSeconds 拉取间隔（秒）
-     */
-    public void start(int intervalSeconds) {
-        log.info("启动Prometheus数据拉取任务，间隔: {}秒", intervalSeconds);
-        
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                pullAndInject();
-            } catch (Exception e) {
-                log.error("拉取Prometheus数据失败", e);
-            }
-        }, 0, intervalSeconds, TimeUnit.SECONDS);
-    }
-    
-    /**
-     * 核心方法：拉取数据并注入到MiniTB数据流
-     */
-    private void pullAndInject() {
-        log.debug("开始拉取Prometheus数据，设备数量: {}", deviceConfigs.size());
-        
-        for (DeviceMetricConfig config : deviceConfigs.values()) {
-            try {
-                // 1. 查询Prometheus获取最新数据
-                Map<String, Double> latestData = queryPrometheus(config);
-                
-                if (latestData.isEmpty()) {
-                    log.warn("设备 {} 无最新数据", config.getDeviceId());
-                    continue;
+            
+            log.info("📊 开始拉取 {} 个 Prometheus 设备的数据", prometheusDevices.size());
+            
+            // 2. 对每个设备拉取数据
+            int successCount = 0;
+            int failCount = 0;
+            
+            for (Device device : prometheusDevices) {
+                try {
+                    pullDeviceMetrics(device);
+                    successCount++;
+                } catch (Exception e) {
+                    log.error("拉取设备 {} 的数据失败", device.getName(), e);
+                    failCount++;
                 }
-                
-                // 2. 转换为JSON格式
-                String telemetryJson = convertToJson(latestData);
-                
-                log.info("从Prometheus拉取到设备数据: deviceId={}, data={}", 
-                         config.getDeviceId(), telemetryJson);
-                
-                // 3. 注入到TransportService（模拟MQTT上报）
-                transportService.processTelemetry(
-                    config.getAccessToken(), 
-                    telemetryJson
+            }
+            
+            log.info("✅ Prometheus 数据拉取完成: 成功 {}, 失败 {}", successCount, failCount);
+            
+        } catch (Exception e) {
+            log.error("Prometheus 数据拉取整体失败", e);
+        }
+    }
+    
+    /**
+     * 拉取单个设备的指标数据
+     */
+    private void pullDeviceMetrics(Device device) throws Exception {
+        log.debug("拉取设备 {} 的 Prometheus 指标", device.getName());
+        
+        // 1. 获取设备的 DeviceProfile
+        DeviceProfile profile = deviceService.findProfileById(device.getDeviceProfileId())
+                .orElseThrow(() -> new IllegalStateException(
+                    "设备 " + device.getName() + " 的 DeviceProfile 不存在"));
+        
+        // 2. 检查设备配置
+        if (!(device.getConfiguration() instanceof PrometheusDeviceConfiguration)) {
+            log.warn("设备 {} 的配置不是 PrometheusDeviceConfiguration 类型，跳过", device.getName());
+            return;
+        }
+        
+        PrometheusDeviceConfiguration config = 
+            (PrometheusDeviceConfiguration) device.getConfiguration();
+        
+        // 3. 验证配置完整性
+        if (config.getEndpoint() == null || config.getEndpoint().isEmpty()) {
+            log.warn("设备 {} 未配置 Prometheus 端点", device.getName());
+            return;
+        }
+        
+        if (config.getLabel() == null || config.getLabel().isEmpty()) {
+            log.warn("设备 {} 未配置 Prometheus 标签", device.getName());
+            return;
+        }
+        
+        // 4. 解析设备的 Prometheus 标签
+        // label 格式: "gpu=0" 或 "instance=server-01:9100"
+        String[] labelParts = config.getLabel().split("=", 2);
+        if (labelParts.length != 2) {
+            log.error("设备 {} 的标签格式错误: {}", 
+                device.getName(), config.getLabel());
+            return;
+        }
+        
+        String labelKey = labelParts[0].trim();    // "gpu" 或 "instance"
+        String labelValue = labelParts[1].trim();  // "0" 或 "server-01:9100"
+        
+        // 4. 遍历所有遥测定义，拉取数据
+        Map<String, Object> telemetryData = new HashMap<>();
+        
+        for (TelemetryDefinition telemetryDef : profile.getTelemetryDefinitions()) {
+            if (!telemetryDef.isPrometheus()) {
+                continue;
+            }
+            
+            PrometheusConfig promConfig = telemetryDef.getPrometheusConfig();
+            String promQL = promConfig.getPromQL();
+            
+            try {
+                // 5. 查询 Prometheus（使用设备配置中的 endpoint）
+                List<PrometheusQueryResult> results = queryPrometheus(
+                    config.getEndpoint(), 
+                    promQL
                 );
                 
-            } catch (Exception e) {
-                log.error("处理设备 {} 数据失败", config.getDeviceId(), e);
-            }
-        }
-    }
-    
-    /**
-     * 查询Prometheus获取设备最新指标
-     */
-    private Map<String, Double> queryPrometheus(DeviceMetricConfig config) 
-            throws Exception {
-        Map<String, Double> result = new HashMap<>();
-        
-        for (String metricKey : config.getMetrics()) {
-            // 优先使用 DeviceProfile 中定义的 PromQL
-            String promQL;
-            if (config.getPromQLMap() != null && config.getPromQLMap().containsKey(metricKey)) {
-                // 使用配置的 PromQL（支持复杂查询）
-                promQL = config.getPromQLMap().get(metricKey);
-                log.debug("使用配置的PromQL: {} -> {}", metricKey, promQL);
-            } else {
-                // 降级为简单查询（兼容旧版）
-                if (config.getDeviceId().contains(":")) {
-                    // 使用instance标签（Prometheus标准格式）
-                    promQL = String.format(
-                        "%s{instance=\"%s\"}", 
-                        metricKey, 
-                        config.getDeviceId()
-                    );
+                // 6. 根据标签过滤出属于当前设备的数据
+                log.debug("  查询返回 {} 条时间序列", results.size());
+                
+                Optional<PrometheusQueryResult> deviceData = results.stream()
+                        .filter(result -> result.matchesLabel(labelKey, labelValue))
+                        .findFirst();
+                
+                if (deviceData.isPresent()) {
+                    telemetryData.put(telemetryDef.getKey(), deviceData.get().getValue());
+                    log.info("  ✓ {} = {}", telemetryDef.getKey(), deviceData.get().getValue());
                 } else {
-                    // 使用device_id标签（自定义格式）
-                    promQL = String.format(
-                        "%s{device_id=\"%s\"}", 
-                        metricKey, 
-                        config.getDeviceId()
-                    );
+                    log.warn("  ✗ {} - 未找到匹配标签 {}={} 的数据，查询返回 {} 条结果", 
+                        telemetryDef.getKey(), labelKey, labelValue, results.size());
+                    
+                    // 打印所有返回的标签，帮助调试
+                    if (!results.isEmpty() && log.isDebugEnabled()) {
+                        log.debug("    可用的标签:");
+                        for (PrometheusQueryResult result : results) {
+                            log.debug("      {}", result.getMetric());
+                        }
+                    }
                 }
-                log.debug("使用默认PromQL: {} -> {}", metricKey, promQL);
-            }
-            
-            // 调用Prometheus HTTP API
-            String url = String.format(
-                "%s/api/v1/query?query=%s",
-                prometheusUrl,
-                URLEncoder.encode(promQL, StandardCharsets.UTF_8)
-            );
-            
-            log.debug("查询Prometheus: query={}", promQL);
-            
-            String response = httpGet(url);
-            
-            // 解析响应获取数值
-            Double value = parsePrometheusResponse(response, metricKey);
-            if (value != null) {
-                result.put(metricKey, value);
-                log.debug("查询结果: {}={}", metricKey, value);
-            } else {
-                log.debug("指标 {} 无数据", metricKey);
+                
+            } catch (Exception e) {
+                log.error("查询 Prometheus 指标 {} 失败: {}", telemetryDef.getKey(), promQL, e);
             }
         }
         
-        return result;
+        // 7. 如果有数据，通过 TransportService 统一处理
+        if (!telemetryData.isEmpty()) {
+            String telemetryJson = gson.toJson(telemetryData);
+            
+            log.debug("📤 设备 {} 拉取到 {} 个指标，调用 processTelemetry", 
+                device.getName(), telemetryData.size());
+            
+            // ✅ 关键：使用 Device 的 AccessToken 调用 processTelemetry
+            // 这样数据就能通过统一流程关联到设备
+            transportService.processTelemetry(
+                device.getAccessToken(),  // ← 通过 Token 关联设备！
+                telemetryJson
+            );
+        } else {
+            log.debug("设备 {} 没有拉取到任何数据", device.getName());
+        }
     }
     
     /**
-     * HTTP GET请求
+     * 查询 Prometheus
+     * 
+     * @param prometheusEndpoint Prometheus URL，例如 "http://localhost:9090"
+     * @param promQL PromQL 查询表达式
+     * @return 查询结果列表
      */
-    private String httpGet(String url) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .timeout(Duration.ofSeconds(5))
-            .GET()
-            .build();
+    private List<PrometheusQueryResult> queryPrometheus(String prometheusEndpoint, String promQL) 
+            throws IOException, InterruptedException {
         
-        HttpResponse<String> response = httpClient.send(
-            request, 
-            HttpResponse.BodyHandlers.ofString()
-        );
+        // 构建 Prometheus API URL
+        // API: GET /api/v1/query?query=<promQL>
+        String url = prometheusEndpoint + "/api/v1/query?query=" + 
+                     java.net.URLEncoder.encode(promQL, "UTF-8");
+        
+        log.debug("查询 Prometheus: {}", promQL);
+        
+        // 发送 HTTP 请求
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .GET()
+                .build();
+        
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         
         if (response.statusCode() != 200) {
-            throw new RuntimeException("HTTP请求失败: " + response.statusCode());
+            throw new IOException("Prometheus 查询失败: HTTP " + response.statusCode());
         }
         
-        return response.body();
+        // 解析响应
+        return parsePrometheusResponse(response.body());
     }
     
     /**
-     * 解析Prometheus响应
+     * 解析 Prometheus API 响应
+     * 
      * 响应格式:
      * {
      *   "status": "success",
      *   "data": {
      *     "resultType": "vector",
-     *     "result": [{
-     *       "metric": {"device_id": "xxx", "__name__": "temperature"},
-     *       "value": [timestamp, "25.0"]
-     *     }]
+     *     "result": [
+     *       {
+     *         "metric": {"instance": "server-01:9100", "job": "node"},
+     *         "value": [timestamp, "45.2"]
+     *       }
+     *     ]
      *   }
      * }
      */
-    private Double parsePrometheusResponse(String jsonResponse, String metricName) {
+    private List<PrometheusQueryResult> parsePrometheusResponse(String responseBody) {
+        List<PrometheusQueryResult> results = new ArrayList<>();
+        
         try {
-            JsonObject json = JsonParser.parseString(jsonResponse)
-                .getAsJsonObject();
+            JsonObject json = gson.fromJson(responseBody, JsonObject.class);
             
             // 检查状态
             String status = json.get("status").getAsString();
             if (!"success".equals(status)) {
-                log.warn("Prometheus查询失败: status={}", status);
-                return null;
+                log.error("Prometheus 查询返回非成功状态: {}", status);
+                return results;
             }
             
-            // 获取结果数组
-            JsonArray results = json.getAsJsonObject("data")
-                .getAsJsonArray("result");
+            // 解析结果
+            JsonObject data = json.getAsJsonObject("data");
+            JsonArray resultArray = data.getAsJsonArray("result");
             
-            if (results.size() > 0) {
-                // 获取第一个结果的值
-                JsonArray value = results.get(0).getAsJsonObject()
-                    .getAsJsonArray("value");
-                // value[0]是时间戳, value[1]是数值字符串
-                String valueStr = value.get(1).getAsString();
-                return Double.parseDouble(valueStr);
-            } else {
-                log.debug("指标 {} 查询结果为空", metricName);
+            for (JsonElement element : resultArray) {
+                JsonObject resultItem = element.getAsJsonObject();
+                
+                // 解析 metric 标签
+                Map<String, String> metric = new HashMap<>();
+                JsonObject metricObj = resultItem.getAsJsonObject("metric");
+                for (String key : metricObj.keySet()) {
+                    metric.put(key, metricObj.get(key).getAsString());
+                }
+                
+                // 解析 value [timestamp, "value"]
+                JsonArray valueArray = resultItem.getAsJsonArray("value");
+                long timestamp = valueArray.get(0).getAsLong();
+                double value = Double.parseDouble(valueArray.get(1).getAsString());
+                
+                results.add(PrometheusQueryResult.builder()
+                        .metric(metric)
+                        .timestamp(timestamp)
+                        .value(value)
+                        .build());
             }
+            
+            log.debug("解析 Prometheus 响应: {} 个时间序列", results.size());
+            
         } catch (Exception e) {
-            log.error("解析Prometheus响应失败: metricName={}, response={}", 
-                     metricName, jsonResponse, e);
+            log.error("解析 Prometheus 响应失败", e);
         }
-        return null;
+        
+        return results;
     }
     
     /**
-     * 转换为ThingsBoard JSON格式
+     * 判断设备是否是 Prometheus 类型
      */
-    private String convertToJson(Map<String, Double> data) {
-        JsonObject json = new JsonObject();
-        for (Map.Entry<String, Double> entry : data.entrySet()) {
-            json.addProperty(entry.getKey(), entry.getValue());
+    private boolean isPrometheusDevice(Device device) {
+        if (device.getDeviceProfileId() == null) {
+            return false;
         }
-        return json.toString();
-    }
-    
-    /**
-     * 关闭拉取器
-     */
-    public void shutdown() {
-        log.info("关闭Prometheus数据拉取器");
-        scheduler.shutdown();
-        try {
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                scheduler.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            scheduler.shutdownNow();
-        }
-    }
-    
-    /**
-     * 获取已注册设备数量
-     */
-    public int getRegisteredDeviceCount() {
-        return deviceConfigs.size();
+        
+        Optional<DeviceProfile> profileOpt = deviceService.findProfileById(device.getDeviceProfileId());
+        return profileOpt.isPresent() && 
+               DeviceProfile.DataSourceType.PROMETHEUS == profileOpt.get().getDataSourceType();
     }
 }
-

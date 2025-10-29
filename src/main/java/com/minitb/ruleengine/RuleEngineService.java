@@ -1,7 +1,6 @@
 package com.minitb.ruleengine;
 
-import com.minitb.domain.messaging.TbMsg;
-import com.minitb.domain.messaging.TbMsgType;
+import com.minitb.domain.messaging.Message;
 import com.minitb.domain.rule.RuleChain;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,8 +53,8 @@ public class RuleEngineService {
      * 处理消息 - 规则引擎的核心入口
      * 这是从TransportService接收消息的地方
      */
-    public void processMessage(TbMsg msg) {
-        log.debug("规则引擎接收消息: type={}, originator={}", 
+    public void processMessage(Message msg) {
+        log.info("规则引擎接收消息: type={}, originator={}", 
                 msg.getType(), msg.getOriginator());
         
         // 异步处理消息（模拟真实ThingsBoard的异步处理）
@@ -71,7 +70,7 @@ public class RuleEngineService {
     /**
      * 内部消息处理逻辑
      */
-    private void processMessageInternal(TbMsg msg) {
+    private void processMessageInternal(Message msg) {
         // 1. 根据消息类型和规则链ID选择规则链
         RuleChain targetRuleChain = selectRuleChain(msg);
         
@@ -86,14 +85,14 @@ public class RuleEngineService {
         //    - 消息在Actor之间传递
         
         // 3. 执行规则链处理
-        log.debug("使用规则链 [{}] 处理消息", targetRuleChain.getName());
+        log.info("使用规则链 [{}] 处理消息", targetRuleChain.getName());
         targetRuleChain.process(msg);
     }
 
     /**
      * 选择规则链
      */
-    private RuleChain selectRuleChain(TbMsg msg) {
+    private RuleChain selectRuleChain(Message msg) {
         // 如果消息指定了规则链ID
         if (msg.getRuleChainId() != null) {
             RuleChain chain = ruleChains.get(msg.getRuleChainId());

@@ -1,5 +1,6 @@
 package com.minitb.domain.device;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.minitb.domain.telemetry.DataType;
 import com.minitb.domain.protocol.HttpConfig;
 import com.minitb.domain.protocol.MqttConfig;
@@ -22,6 +23,7 @@ import lombok.NoArgsConstructor;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TelemetryDefinition {
     
     /**

@@ -4,14 +4,8 @@ import java.util.UUID;
 
 /**
  * 规则节点ID
- * 
- * 改进点：
- * 1. 不可变ID（继承自UUIDBased）
- * 2. 缓存hashCode
- * 3. 工厂方法
- * 4. 类型安全
  */
-public class RuleNodeId extends UUIDBased {
+public class RuleNodeId extends EntityId {
     
     private static final long serialVersionUID = 1L;
     
