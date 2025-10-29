@@ -4,6 +4,7 @@ import com.minitb.application.service.DeviceService;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -103,7 +104,10 @@ class PrometheusDataPullerIntegrationTest {
                 .type("SERVER_LOCALHOST")
                 .deviceProfileId(localhostProfileId)
                 .accessToken("localhost-monitor-token")
-                .prometheusLabel("instance=" + NODE_EXPORTER_INSTANCE)
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint(PROMETHEUS_ENDPOINT)
+                    .label("instance=" + NODE_EXPORTER_INSTANCE)
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         
@@ -119,13 +123,15 @@ class PrometheusDataPullerIntegrationTest {
         
         initialized = true;  // ← 标记已初始化
         
+        PrometheusDeviceConfiguration config = (PrometheusDeviceConfiguration) savedDevice.getConfiguration();
+        
         System.out.println("\n========================================");
         System.out.println("✅ 测试环境初始化完成");
         System.out.println("========================================");
         System.out.println("📊 Prometheus: " + PROMETHEUS_ENDPOINT);
         System.out.println("📡 Node Exporter: " + NODE_EXPORTER_INSTANCE);
         System.out.println("🖥️  设备: " + savedDevice.getName());
-        System.out.println("🏷️  标签映射: " + savedDevice.getPrometheusLabel());
+        System.out.println("🏷️  标签映射: " + config.getLabel());
         System.out.println("========================================\n");
     }
     
@@ -258,22 +264,23 @@ class PrometheusDataPullerIntegrationTest {
         // Given - 查询设备信息
         Device device = deviceService.findById(localhostDeviceId).orElseThrow();
         DeviceProfile profile = deviceService.findProfileById(localhostProfileId).orElseThrow();
+        PrometheusDeviceConfiguration config = (PrometheusDeviceConfiguration) device.getConfiguration();
         
         // Then - 验证配置
         System.out.println("设备配置:");
-        System.out.println("  - prometheusLabel: " + device.getPrometheusLabel());
+        System.out.println("  - label: " + config.getLabel());
+        System.out.println("  - endpoint: " + config.getEndpoint());
         System.out.println("  - accessToken: " + device.getAccessToken());
         System.out.println("\nProfile 配置:");
-        System.out.println("  - prometheusEndpoint: " + profile.getPrometheusEndpoint());
         System.out.println("  - prometheusDeviceLabelKey: " + profile.getPrometheusDeviceLabelKey());
         
         // 验证配置正确
-        assertEquals("instance=" + NODE_EXPORTER_INSTANCE, device.getPrometheusLabel());
-        assertEquals(PROMETHEUS_ENDPOINT, profile.getPrometheusEndpoint());
+        assertEquals("instance=" + NODE_EXPORTER_INSTANCE, config.getLabel());
+        assertEquals(PROMETHEUS_ENDPOINT, config.getEndpoint());
         assertEquals("instance", profile.getPrometheusDeviceLabelKey());
         
         // 解析标签
-        String[] labelParts = device.getPrometheusLabel().split("=", 2);
+        String[] labelParts = config.getLabel().split("=", 2);
         assertEquals(2, labelParts.length, "标签格式应该是 key=value");
         assertEquals("instance", labelParts[0], "标签键应该匹配 Profile 配置");
         assertEquals(NODE_EXPORTER_INSTANCE, labelParts[1], "标签值应该匹配 Node Exporter 实例");
@@ -334,7 +341,7 @@ class PrometheusDataPullerIntegrationTest {
                 .name("Localhost Monitor Profile")
                 .description("本机系统监控配置")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint(PROMETHEUS_ENDPOINT)
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("instance")
                 .strictMode(true)
                 .telemetryDefinitions(telemetryDefs)

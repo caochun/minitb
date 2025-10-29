@@ -81,10 +81,13 @@ public class SqliteConnectionManager {
                 name TEXT NOT NULL,
                 description TEXT,
                 telemetry_definitions_json TEXT,
+                alarm_rules_json TEXT,
                 strict_mode INTEGER DEFAULT 0,
                 data_source_type TEXT,
                 prometheus_endpoint TEXT,
                 prometheus_device_label_key TEXT,
+                default_rule_chain_id TEXT,
+                default_queue_name TEXT,
                 created_time INTEGER,
                 updated_time INTEGER,
                 UNIQUE(name)

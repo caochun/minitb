@@ -5,6 +5,7 @@ import com.minitb.application.service.DeviceService;
 import com.minitb.datasource.prometheus.PrometheusDataPuller;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -71,7 +72,7 @@ class PrometheusPerformanceAnalysisTest {
                 .id(DeviceProfileId.random())
                 .name("Performance Test Profile")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint(PROMETHEUS_ENDPOINT)
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("instance")
                 .telemetryDefinitions(createTelemetryDefinitions())
                 .createdTime(System.currentTimeMillis())
@@ -85,7 +86,10 @@ class PrometheusPerformanceAnalysisTest {
                 .type("PERF_TEST")
                 .deviceProfileId(testProfileId)
                 .accessToken("perf-test-token-" + System.currentTimeMillis())
-                .prometheusLabel("instance=" + NODE_EXPORTER_INSTANCE)
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint(PROMETHEUS_ENDPOINT)
+                    .label("instance=" + NODE_EXPORTER_INSTANCE)
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         

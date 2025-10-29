@@ -61,6 +61,10 @@ public class TransportService {
         this.actorSystem = actorSystem;
         log.info("传输服务已设置 Actor 系统");
         
+        // ⭐ 将Actor系统设置到规则引擎服务
+        // 这样RuleEngineService可以创建RuleChainActor
+        ruleEngineService.setActorSystem(actorSystem);
+        
         // 创建规则引擎 Actor
         RuleEngineActor ruleEngineActor = new RuleEngineActor(ruleEngineService);
         actorSystem.createActor("RuleEngineActor", ruleEngineActor);
@@ -83,9 +87,28 @@ public class TransportService {
             return;
         }
         
-        DeviceActor deviceActor = new DeviceActor(device.getId(), device);
-        actorSystem.createActor(deviceActor.getActorId(), deviceActor);
-        log.debug("为设备 {} 创建 DeviceActor: {}", device.getName(), deviceActor.getActorId());
+        // ⭐ 获取DeviceProfile并传入DeviceActor
+        DeviceActor deviceActor;
+        if (device.getDeviceProfileId() != null) {
+            deviceService.findProfileById(device.getDeviceProfileId()).ifPresentOrElse(
+                profile -> {
+                    // 使用带DeviceProfile的构造函数
+                    DeviceActor actor = new DeviceActor(device.getId(), device, profile);
+                    actorSystem.createActor(actor.getActorId(), actor);
+                    log.debug("为设备 {} 创建 DeviceActor（含Profile）: {}", device.getName(), actor.getActorId());
+                },
+                () -> {
+                    // 降级：不带DeviceProfile
+                    DeviceActor actor = new DeviceActor(device.getId(), device);
+                    actorSystem.createActor(actor.getActorId(), actor);
+                    log.debug("为设备 {} 创建 DeviceActor（无Profile）: {}", device.getName(), actor.getActorId());
+                }
+            );
+        } else {
+            deviceActor = new DeviceActor(device.getId(), device);
+            actorSystem.createActor(deviceActor.getActorId(), deviceActor);
+            log.debug("为设备 {} 创建 DeviceActor（无ProfileId）: {}", device.getName(), deviceActor.getActorId());
+        }
     }
 
     /**

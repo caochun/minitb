@@ -1,20 +1,20 @@
 package com.minitb.domain.alarm;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.minitb.domain.id.AlarmId;
-import com.minitb.domain.id.EntityId;
+import com.minitb.domain.id.DeviceId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 告警实体（简化版）
+ * 告警实体（聚合根）
  * 
- * 简化说明：
- * - 移除了多租户相关（TenantId, CustomerId）
- * - 移除了传播机制（propagate, propagateToOwner 等）
- * - 移除了分配功能（assigneeId, assignTs）
- * - 保留核心告警功能
+ * 设计原则：
+ * - 不可变的核心字段（id, deviceId, type, startTs）
+ * - 可变的状态字段（severity, status, endTs, ackTs, clearTs）
+ * - 丰富的领域行为方法
  */
 @Data
 @Builder
@@ -23,36 +23,30 @@ import lombok.NoArgsConstructor;
 public class Alarm {
     
     /**
-     * 告警ID
+     * 告警唯一标识
      */
     private AlarmId id;
     
     /**
+     * 告警来源设备ID
+     */
+    private DeviceId originator;
+    
+    /**
+     * 告警来源设备名称（冗余字段，便于显示）
+     */
+    private String originatorName;
+    
+    /**
      * 告警类型
-     * 例如: "High Temperature", "Low Battery", "Connection Lost"
+     * 例如: "High Temperature", "High Power Usage", "Connection Lost"
      */
     private String type;
     
     /**
-     * 告警来源实体
-     * 可以是 Device, Asset 等
-     */
-    private EntityId originator;
-    
-    /**
-     * 严重级别
+     * 告警严重程度
      */
     private AlarmSeverity severity;
-    
-    /**
-     * 是否已确认
-     */
-    private boolean acknowledged;
-    
-    /**
-     * 是否已清除
-     */
-    private boolean cleared;
     
     /**
      * 告警开始时间（毫秒时间戳）
@@ -60,62 +54,123 @@ public class Alarm {
     private long startTs;
     
     /**
-     * 告警结束时间（最后更新时间）
+     * 告警结束时间（最后更新时间，毫秒时间戳）
      */
     private long endTs;
     
     /**
-     * 确认时间
+     * 告警确认时间（毫秒时间戳）
      */
-    private long ackTs;
+    private Long ackTs;
     
     /**
-     * 清除时间
+     * 告警清除时间（毫秒时间戳）
      */
-    private long clearTs;
+    private Long clearTs;
     
     /**
-     * 告警详细信息（可选，JSON格式）
+     * 告警详情（JSON 格式）
+     * 可以包含触发告警的具体数据、阈值等信息
      */
-    private String details;
+    private JsonNode details;
     
     /**
      * 创建时间
      */
     private long createdTime;
     
+    // ==================== 领域行为 ====================
+    
     /**
-     * 获取告警状态（计算字段）
+     * 获取当前告警状态
      */
     public AlarmStatus getStatus() {
-        return AlarmStatus.from(cleared, acknowledged);
+        return AlarmStatus.from(isCleared(), isAcknowledged());
+    }
+    
+    /**
+     * 是否已清除
+     */
+    public boolean isCleared() {
+        return clearTs != null && clearTs > 0;
+    }
+    
+    /**
+     * 是否已确认
+     */
+    public boolean isAcknowledged() {
+        return ackTs != null && ackTs > 0;
     }
     
     /**
      * 确认告警
      */
     public void acknowledge() {
-        this.acknowledged = true;
-        this.ackTs = System.currentTimeMillis();
-        this.endTs = this.ackTs;
+        acknowledge(System.currentTimeMillis());
+    }
+    
+    /**
+     * 确认告警（指定时间）
+     */
+    public void acknowledge(long timestamp) {
+        if (isCleared()) {
+            throw new IllegalStateException("Cannot acknowledge a cleared alarm");
+        }
+        this.ackTs = timestamp;
+        this.endTs = timestamp;
     }
     
     /**
      * 清除告警
      */
     public void clear() {
-        this.cleared = true;
-        this.clearTs = System.currentTimeMillis();
-        this.endTs = this.clearTs;
+        clear(System.currentTimeMillis());
     }
     
     /**
-     * 判断告警是否活跃
+     * 清除告警（指定时间）
      */
-    public boolean isActive() {
-        return !cleared;
+    public void clear(long timestamp) {
+        this.clearTs = timestamp;
+        this.endTs = timestamp;
+    }
+    
+    /**
+     * 更新严重程度
+     */
+    public void updateSeverity(AlarmSeverity newSeverity) {
+        updateSeverity(newSeverity, System.currentTimeMillis());
+    }
+    
+    /**
+     * 更新严重程度（指定时间）
+     */
+    public void updateSeverity(AlarmSeverity newSeverity, long timestamp) {
+        if (isCleared()) {
+            throw new IllegalStateException("Cannot update severity of a cleared alarm");
+        }
+        this.severity = newSeverity;
+        this.endTs = timestamp;
+    }
+    
+    /**
+     * 获取告警持续时间（毫秒）
+     */
+    public long getDuration() {
+        if (clearTs != null) {
+            return clearTs - startTs;
+        }
+        return System.currentTimeMillis() - startTs;
+    }
+    
+    
+    public long getDurationSeconds() {
+        return getDuration() / 1000;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("Alarm[id=%s, type=%s, severity=%s, status=%s, device=%s]",
+            id, type, severity, getStatus(), originatorName);
     }
 }
-
-
-

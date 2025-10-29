@@ -39,6 +39,9 @@ public interface MiniTbActorMsg {
         // === 设备 Actor 到规则引擎 Actor ===
         TO_RULE_ENGINE_MSG,             // 从 DeviceActor → RuleEngineActor
         
+        // === 规则引擎 Actor 到规则链 Actor ===
+        TO_RULE_CHAIN_MSG,              // 从 RuleEngineActor → RuleChainActor
+        
         // === 设备管理消息 ===
         DEVICE_CONNECTED_MSG,           // 通知 DeviceActor: 设备已连接
         DEVICE_DISCONNECTED_MSG,        // 通知 DeviceActor: 设备已断开

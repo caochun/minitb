@@ -3,6 +3,7 @@ package com.minitb.integration;
 import com.minitb.application.service.DeviceService;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
@@ -53,14 +54,17 @@ class PrometheusDeviceIntegrationTest {
     
     @Test
     void testCreatePrometheusDevice() {
-        // Given - 创建设备（带 Prometheus 标签映射）
+        // Given - 创建设备（带 Prometheus 配置）
         Device device = Device.builder()
                 .id(DeviceId.random())
                 .name("Prometheus Monitor Server-01")
                 .type("SERVER_MONITOR")
                 .deviceProfileId(prometheusProfileId)
                 .accessToken("prometheus-server-01-token")
-                .prometheusLabel("instance=server-01:9100")  // ← Prometheus 标签映射
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("instance=server-01:9100")  // ← Prometheus 标签映射
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         
@@ -73,13 +77,19 @@ class PrometheusDeviceIntegrationTest {
         assertEquals("Prometheus Monitor Server-01", savedDevice.getName());
         assertEquals("SERVER_MONITOR", savedDevice.getType());
         assertEquals(prometheusProfileId, savedDevice.getDeviceProfileId());
-        assertEquals("instance=server-01:9100", savedDevice.getPrometheusLabel());
+        
+        // 验证配置
+        assertNotNull(savedDevice.getConfiguration());
+        assertTrue(savedDevice.getConfiguration() instanceof PrometheusDeviceConfiguration);
+        PrometheusDeviceConfiguration config = (PrometheusDeviceConfiguration) savedDevice.getConfiguration();
+        assertEquals("instance=server-01:9100", config.getLabel());
         
         // 验证设备可以通过 ID 查询
         Optional<Device> foundDevice = deviceService.findById(savedDevice.getId());
         assertTrue(foundDevice.isPresent());
         assertEquals(savedDevice.getId(), foundDevice.get().getId());
-        assertEquals("instance=server-01:9100", foundDevice.get().getPrometheusLabel());
+        PrometheusDeviceConfiguration foundConfig = (PrometheusDeviceConfiguration) foundDevice.get().getConfiguration();
+        assertEquals("instance=server-01:9100", foundConfig.getLabel());
     }
     
     @Test
@@ -93,7 +103,7 @@ class PrometheusDeviceIntegrationTest {
         
         assertEquals("Prometheus Server Monitor", profile.getName());
         assertEquals(DeviceProfile.DataSourceType.PROMETHEUS, profile.getDataSourceType());
-        assertEquals("http://localhost:9090", profile.getPrometheusEndpoint());
+        // prometheusEndpoint 已移到Device.configuration中
         assertEquals("instance", profile.getPrometheusDeviceLabelKey());
         
         // 验证遥测定义
@@ -221,7 +231,10 @@ class PrometheusDeviceIntegrationTest {
                 .type("SERVER_MONITOR")
                 .deviceProfileId(prometheusProfileId)
                 .accessToken("token-server-01")
-                .prometheusLabel("instance=server-01:9100")  // ← 标签 1
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("instance=server-01:9100")  // ← 标签 1
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         
@@ -231,7 +244,10 @@ class PrometheusDeviceIntegrationTest {
                 .type("SERVER_MONITOR")
                 .deviceProfileId(prometheusProfileId)
                 .accessToken("token-server-02")
-                .prometheusLabel("instance=server-02:9100")  // ← 标签 2
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("instance=server-02:9100")  // ← 标签 2
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
         
@@ -240,8 +256,10 @@ class PrometheusDeviceIntegrationTest {
         Device saved2 = deviceService.save(server2);
         
         // Then - 验证标签映射正确保存
-        assertEquals("instance=server-01:9100", saved1.getPrometheusLabel());
-        assertEquals("instance=server-02:9100", saved2.getPrometheusLabel());
+        PrometheusDeviceConfiguration config1 = (PrometheusDeviceConfiguration) saved1.getConfiguration();
+        PrometheusDeviceConfiguration config2 = (PrometheusDeviceConfiguration) saved2.getConfiguration();
+        assertEquals("instance=server-01:9100", config1.getLabel());
+        assertEquals("instance=server-02:9100", config2.getLabel());
         
         // 验证可以通过 AccessToken 查询到正确的设备
         Optional<Device> foundByToken1 = deviceService.findByAccessToken("token-server-01");
@@ -250,8 +268,10 @@ class PrometheusDeviceIntegrationTest {
         assertTrue(foundByToken1.isPresent());
         assertTrue(foundByToken2.isPresent());
         
-        assertEquals("instance=server-01:9100", foundByToken1.get().getPrometheusLabel());
-        assertEquals("instance=server-02:9100", foundByToken2.get().getPrometheusLabel());
+        PrometheusDeviceConfiguration foundConfig1 = (PrometheusDeviceConfiguration) foundByToken1.get().getConfiguration();
+        PrometheusDeviceConfiguration foundConfig2 = (PrometheusDeviceConfiguration) foundByToken2.get().getConfiguration();
+        assertEquals("instance=server-01:9100", foundConfig1.getLabel());
+        assertEquals("instance=server-02:9100", foundConfig2.getLabel());
         
         // 验证标签映射持久化
         Optional<Device> reloaded1 = deviceService.findById(saved1.getId());
@@ -260,8 +280,10 @@ class PrometheusDeviceIntegrationTest {
         assertTrue(reloaded1.isPresent());
         assertTrue(reloaded2.isPresent());
         
-        assertEquals("instance=server-01:9100", reloaded1.get().getPrometheusLabel());
-        assertEquals("instance=server-02:9100", reloaded2.get().getPrometheusLabel());
+        PrometheusDeviceConfiguration reloadedConfig1 = (PrometheusDeviceConfiguration) reloaded1.get().getConfiguration();
+        PrometheusDeviceConfiguration reloadedConfig2 = (PrometheusDeviceConfiguration) reloaded2.get().getConfiguration();
+        assertEquals("instance=server-01:9100", reloadedConfig1.getLabel());
+        assertEquals("instance=server-02:9100", reloadedConfig2.getLabel());
     }
     
     // ==================== Helper Methods ====================
@@ -317,7 +339,7 @@ class PrometheusDeviceIntegrationTest {
                 .name("Prometheus Server Monitor")
                 .description("用于监控服务器的 Prometheus 配置文件，包含 CPU、内存、磁盘指标")
                 .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
-                .prometheusEndpoint("http://localhost:9090")           // ← Prometheus 端点
+                // prometheusEndpoint 已移到Device.configuration中
                 .prometheusDeviceLabelKey("instance")                   // ← 设备标识标签键
                 .strictMode(true)
                 .telemetryDefinitions(telemetryDefs)
@@ -339,7 +361,10 @@ class PrometheusDeviceIntegrationTest {
                 .type("SERVER_MONITOR")
                 .deviceProfileId(prometheusProfileId)
                 .accessToken(accessToken)
-                .prometheusLabel("instance=" + labelValue)  // ← Prometheus 标签映射
+                .configuration(PrometheusDeviceConfiguration.builder()
+                    .endpoint("http://localhost:9090")
+                    .label("instance=" + labelValue)  // ← Prometheus 标签映射
+                    .build())
                 .createdTime(System.currentTimeMillis())
                 .build();
     }

@@ -1,5 +1,6 @@
 package com.minitb.application.service;
 
+import com.minitb.domain.alarm.*;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
 import com.minitb.domain.device.IpmiDeviceConfiguration;
@@ -16,9 +17,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * 数据初始化器
@@ -100,6 +99,7 @@ public class DataInitializer implements CommandLineRunner {
                 .prometheusDeviceLabelKey("gpu")
                 .strictMode(true)
                 .telemetryDefinitions(createGpuTelemetryDefinitions())
+                .alarmRules(createGpuAlarmRules())  // 添加告警规则
                 .createdTime(System.currentTimeMillis())
                 .build();
         
@@ -479,6 +479,73 @@ public class DataInitializer implements CommandLineRunner {
                 .build());
         
         return defs;
+    }
+    
+    /**
+     * 创建 GPU 告警规则
+     */
+    private List<AlarmRule> createGpuAlarmRules() {
+        List<AlarmRule> rules = new ArrayList<>();
+        
+        // 1. GPU 温度告警（多级）
+        AlarmRule gpuTempRule = AlarmRule.builder()
+                .id("gpu_temperature_alarm")
+                .alarmType("GPU High Temperature")
+                .createConditions(Map.of(
+                    // CRITICAL: > 85°C 持续 30 秒
+                    AlarmSeverity.CRITICAL, AlarmCondition.duration(30,
+                        AlarmConditionFilter.greaterThan("gpu_temperature", 85.0)
+                    ),
+                    // MAJOR: > 80°C 持续 30 秒
+                    AlarmSeverity.MAJOR, AlarmCondition.duration(30,
+                        AlarmConditionFilter.greaterThan("gpu_temperature", 80.0)
+                    ),
+                    // WARNING: > 75°C 持续 30 秒
+                    AlarmSeverity.WARNING, AlarmCondition.duration(30,
+                        AlarmConditionFilter.greaterThan("gpu_temperature", 75.0)
+                    )
+                ))
+                .clearCondition(AlarmCondition.simple(
+                    AlarmConditionFilter.lessThan("gpu_temperature", 70.0)
+                ))
+                .build();
+        rules.add(gpuTempRule);
+        
+        // 2. 显存温度告警
+        AlarmRule memoryTempRule = AlarmRule.builder()
+                .id("memory_temperature_alarm")
+                .alarmType("Memory High Temperature")
+                .createConditions(Map.of(
+                    AlarmSeverity.CRITICAL, AlarmCondition.duration(30,
+                        AlarmConditionFilter.greaterThan("memory_temperature", 90.0)
+                    ),
+                    AlarmSeverity.WARNING, AlarmCondition.duration(30,
+                        AlarmConditionFilter.greaterThan("memory_temperature", 85.0)
+                    )
+                ))
+                .clearCondition(AlarmCondition.simple(
+                    AlarmConditionFilter.lessThan("memory_temperature", 80.0)
+                ))
+                .build();
+        rules.add(memoryTempRule);
+        
+        // 3. 功耗告警
+        AlarmRule powerRule = AlarmRule.builder()
+                .id("power_usage_alarm")
+                .alarmType("High Power Usage")
+                .createConditions(Map.of(
+                    AlarmSeverity.WARNING, AlarmCondition.simple(
+                        AlarmConditionFilter.greaterThan("power_usage", 200.0)
+                    )
+                ))
+                .clearCondition(AlarmCondition.simple(
+                    AlarmConditionFilter.lessThan("power_usage", 180.0)
+                ))
+                .build();
+        rules.add(powerRule);
+        
+        log.info("  - 告警规则: GPU 温度、显存温度、功耗 (3 个规则)");
+        return rules;
     }
 }
 

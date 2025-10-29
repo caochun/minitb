@@ -6,6 +6,7 @@ import com.minitb.actor.MiniTbActorMsg;
 import com.minitb.actor.msg.ToRuleEngineMsg;
 import com.minitb.actor.msg.TransportToDeviceMsg;
 import com.minitb.domain.device.Device;
+import com.minitb.domain.device.DeviceProfile;
 import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.telemetry.*;
 import com.minitb.domain.messaging.Message;
@@ -42,6 +43,7 @@ public class DeviceActor implements MiniTbActor {
     
     private final DeviceId deviceId;
     private final Device device;
+    private DeviceProfile deviceProfile;  // ⭐ 添加DeviceProfile缓存
     
     // 设备状态
     private volatile boolean connected = false;
@@ -56,6 +58,15 @@ public class DeviceActor implements MiniTbActor {
     public DeviceActor(DeviceId deviceId, Device device) {
         this.deviceId = deviceId;
         this.device = device;
+    }
+    
+    /**
+     * 构造函数重载：可以传入DeviceProfile
+     */
+    public DeviceActor(DeviceId deviceId, Device device, DeviceProfile deviceProfile) {
+        this.deviceId = deviceId;
+        this.device = device;
+        this.deviceProfile = deviceProfile;
     }
     
     @Override
@@ -94,13 +105,28 @@ public class DeviceActor implements MiniTbActor {
         List<TsKvEntry> tsKvEntries = parseJsonToKvEntries(msg.getPayload());
         
         // 创建 Message（包含强类型数据）
-        Message tbMsg = Message.newMsg(
-                MessageType.POST_TELEMETRY_REQUEST,
-                deviceId,
-                null,  // metaData
-                msg.getPayload(),
-                tsKvEntries
-        );
+        // 根据DeviceProfile设置规则链ID和队列名称（类似ThingsBoard）
+        Message.MessageBuilder builder = Message.builder()
+                .id(java.util.UUID.randomUUID())
+                .type(MessageType.POST_TELEMETRY_REQUEST)
+                .originator(deviceId)
+                .data(msg.getPayload())
+                .tsKvEntries(tsKvEntries)
+                .timestamp(System.currentTimeMillis());
+        
+        // ⭐ 根据DeviceProfile设置规则链和队列
+        if (deviceProfile != null) {
+            if (deviceProfile.getDefaultRuleChainId() != null) {
+                builder.ruleChainId(deviceProfile.getDefaultRuleChainId().toString());
+                log.debug("[{}] 设置规则链ID: {}", deviceId, deviceProfile.getDefaultRuleChainId());
+            }
+            if (deviceProfile.getDefaultQueueName() != null) {
+                builder.queueName(deviceProfile.getDefaultQueueName());
+                log.debug("[{}] 设置队列名称: {}", deviceId, deviceProfile.getDefaultQueueName());
+            }
+        }
+        
+        Message tbMsg = builder.build();
         
         // 转发到规则引擎
         ctx.tell(RULE_ENGINE_ACTOR_ID, new ToRuleEngineMsg(tbMsg));
