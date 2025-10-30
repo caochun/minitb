@@ -1,6 +1,9 @@
 package com.minitb.configuration;
 
 import com.minitb.actor.MiniTbActorSystem;
+import com.minitb.application.service.DeviceService;
+import com.minitb.application.service.alarm.AlarmEvaluator;
+import com.minitb.infrastructure.rule.AlarmEvaluatorNode;
 import com.minitb.infrastructure.rule.FilterNode;
 import com.minitb.infrastructure.rule.LogNode;
 import com.minitb.domain.rule.RuleChain;
@@ -45,20 +48,25 @@ public class MiniTBConfiguration {
      * 规则引擎服务
      */
     @Bean
-    public RuleEngineService ruleEngineService(TelemetryStorage storage, MiniTbActorSystem actorSystem) {
+    public RuleEngineService ruleEngineService(
+            TelemetryStorage storage, 
+            MiniTbActorSystem actorSystem,
+            AlarmEvaluator alarmEvaluator,
+            DeviceService deviceService) {
         log.info("初始化规则引擎服务...");
         RuleEngineService service = new RuleEngineService();
         
         // ⭐ 设置Actor系统（必须在设置规则链之前）
         service.setActorSystem(actorSystem);
         
-        // 创建根规则链
+        // 创建根规则链（包含告警评估）
         RuleChain rootRuleChain = new RuleChain("Root Rule Chain");
         rootRuleChain
                 .addNode(new LogNode("入口日志"))
                 .addNode(new FilterNode("temperature", 20.0))
                 .addNode(new LogNode("过滤后日志"))
                 .addNode(new SaveTelemetryNode(storage))
+                .addNode(new AlarmEvaluatorNode(alarmEvaluator, deviceService))  // ⭐ 添加告警评估节点
                 .addNode(new LogNode("保存完成"));
         
         service.setRootRuleChain(rootRuleChain);
