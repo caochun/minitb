@@ -21,6 +21,71 @@ MiniTB 是一个基于 **Spring Boot + Actor 模型 + 六边形架构** 的轻�
 
 ---
 
+## 🌐 网站活性检测（blackbox_exporter）
+
+MiniTB 原生支持通过 Prometheus + blackbox_exporter 监控网站可达性，并将状态写入平台的数据流与存储，提供 Web 页面展示。
+
+### 快速使用
+
+1) 启动本机 blackbox_exporter（默认 9115）
+
+2) 使用项目内置 Prometheus 配置（已包含国网江苏电力公司主页示例）
+
+```bash
+prometheus --config.file=prometheus-blackbox.yml
+# 或 Docker：
+docker run --rm -p 9090:9090 \
+  -v $PWD/prometheus-blackbox.yml:/etc/prometheus/prometheus.yml \
+  prom/prometheus
+```
+
+配置片段（已内置于 `prometheus-blackbox.yml`）：
+
+```yaml
+scrape_configs:
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://www.js.sgcc.com.cn
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: instance
+        source_labels: [__param_target]
+      - target_label: __address__
+        replacement: localhost:9115
+```
+
+3) 启动 MiniTB，系统会在初始化阶段创建一个网站监控设备：
+
+- DeviceProfile: `Website Uptime Monitor`
+- Device: `JS SGCC Website`（绑定标签 `instance=http://www.js.sgcc.com.cn`）
+- 采集指标：
+  - `website_alive`（probe_success）
+  - `http_status_code`（probe_http_status_code）
+  - `ssl_days_to_expiry`（如为 HTTPS）
+
+4) Web 展示
+
+- 访问页面：`http://localhost:8080/website-monitor.html`
+- 功能：展示可达状态（Up/Down）、HTTP 状态码、设备与最后更新时间，支持多 Website 设备切换与 `?deviceId=...` 直达
+
+### 端到端测试（可选）
+
+要求本机运行 Prometheus 和 blackbox_exporter：
+
+```bash
+export PROMETHEUS_ENABLED=true
+mvn -Dtest=WebsiteMonitoringEndToEndTest test
+```
+
+测试会验证：Prometheus 能返回 `probe_success` → MiniTB 拉取并写入存储 → 规则链处理成功。
+
+---
+
 ## 🚀 快速开始
 
 ### 环境要求
