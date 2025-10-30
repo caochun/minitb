@@ -31,6 +31,7 @@ public class SqliteConnectionManager {
     private String dbPath;
     
     private Connection connection;
+    private final Object connectionLock = new Object();  // ⭐ 连接锁，保证线程安全
     
     @PostConstruct
     public void initialize() throws SQLException {
@@ -48,12 +49,14 @@ public class SqliteConnectionManager {
         String url = "jdbc:sqlite:" + dbPath;
         connection = DriverManager.getConnection(url);
         
-        // 启用外键约束
+        // 启用外键约束和优化设置
         try (Statement stmt = connection.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON");
+            stmt.execute("PRAGMA busy_timeout = 5000");  // ⭐ 设置锁超时 5 秒
+            stmt.execute("PRAGMA journal_mode = WAL");    // ⭐ 启用 WAL 模式，提升并发性能
         }
         
-        log.info("SQLite 连接已建立: {}", url);
+        log.info("SQLite 连接已建立: {} (WAL模式)", url);
         
         // 初始化表结构
         createTablesIfNotExist();
@@ -63,9 +66,12 @@ public class SqliteConnectionManager {
     
     /**
      * 获取数据库连接
+     * ⭐ 使用同步锁保证线程安全
      */
     public Connection getConnection() {
-        return connection;
+        synchronized (connectionLock) {
+            return connection;
+        }
     }
     
     /**
@@ -147,12 +153,14 @@ public class SqliteConnectionManager {
      */
     @PreDestroy
     public void cleanup() {
-        if (connection != null) {
-            try {
-                connection.close();
-                log.info("SQLite 连接已关闭");
-            } catch (SQLException e) {
-                log.error("关闭 SQLite 连接失败", e);
+        synchronized (connectionLock) {
+            if (connection != null) {
+                try {
+                    connection.close();
+                    log.info("SQLite 连接已关闭");
+                } catch (SQLException e) {
+                    log.error("关闭 SQLite 连接失败", e);
+                }
             }
         }
     }
@@ -161,10 +169,12 @@ public class SqliteConnectionManager {
      * 检查连接是否有效
      */
     public boolean isConnected() {
-        try {
-            return connection != null && !connection.isClosed();
-        } catch (SQLException e) {
-            return false;
+        synchronized (connectionLock) {
+            try {
+                return connection != null && !connection.isClosed();
+            } catch (SQLException e) {
+                return false;
+            }
         }
     }
 }
