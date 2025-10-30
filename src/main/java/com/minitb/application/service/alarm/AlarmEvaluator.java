@@ -3,6 +3,7 @@ package com.minitb.application.service.alarm;
 import com.minitb.domain.alarm.*;
 import com.minitb.domain.device.Device;
 import com.minitb.domain.device.DeviceProfile;
+import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.telemetry.TsKvEntry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -336,6 +337,28 @@ public class AlarmEvaluator {
     public void clearContext(Device device) {
         String prefix = device.getId().toString() + "#";
         contextCache.keySet().removeIf(key -> key.startsWith(prefix));
+    }
+    
+    /**
+     * 清理设备特定告警类型的评估上下文
+     * 
+     * 使用场景：
+     * - 告警被清除或确认后，重置 Duration/Repeating 计时
+     * - 确保下次评估时重新开始计时
+     */
+    public void clearContextByAlarmType(DeviceId deviceId, String alarmType) {
+        // 找到所有匹配的 key 并清理
+        String devicePrefix = deviceId.toString() + "#";
+        
+        // 因为 contextCache 的 key 格式是 "deviceId#ruleId"，而不是 "deviceId#alarmType"
+        // 所以我们需要遍历所有 key，检查对应的规则是否匹配该 alarmType
+        // 但由于我们没有直接存储 alarmType -> ruleId 的映射，
+        // 这里采用简化方案：清理所有该设备的上下文
+        // 更精确的方案需要在上下文中存储 alarmType
+        
+        contextCache.keySet().removeIf(key -> key.startsWith(devicePrefix));
+        
+        log.debug("清理设备 {} 的告警类型 {} 的评估上下文", deviceId, alarmType);
     }
 }
 

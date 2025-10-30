@@ -4,6 +4,7 @@ import com.minitb.domain.alarm.*;
 import com.minitb.domain.id.AlarmId;
 import com.minitb.domain.id.DeviceId;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,10 +19,15 @@ public class AlarmServiceImpl implements AlarmService {
     
     private final AlarmRepository alarmRepository;
     private final AlarmNotificationService notificationService;
+    private final AlarmEvaluator alarmEvaluator;
     
-    public AlarmServiceImpl(AlarmRepository alarmRepository, AlarmNotificationService notificationService) {
+    public AlarmServiceImpl(
+            AlarmRepository alarmRepository, 
+            AlarmNotificationService notificationService,
+            @Lazy AlarmEvaluator alarmEvaluator) {  // ⭐ 使用 @Lazy 打破循环依赖
         this.alarmRepository = alarmRepository;
         this.notificationService = notificationService;
+        this.alarmEvaluator = alarmEvaluator;
     }
     
     @Override
@@ -98,6 +104,10 @@ public class AlarmServiceImpl implements AlarmService {
         // ⚠️ 不推送清除通知 - 避免用户操作后又收到推送
         // notificationService.notifyAlarmCleared(saved);
         
+        // ⭐ 清理评估上下文，确保下次重新计时
+        alarmEvaluator.clearContextByAlarmType(alarm.getOriginator(), alarm.getType());
+        log.debug("已清理告警 {} 的评估上下文（重新计时）", alarm.getType());
+        
         return saved;
     }
     
@@ -129,6 +139,10 @@ public class AlarmServiceImpl implements AlarmService {
         alarm.acknowledge();
         Alarm saved = alarmRepository.save(alarm);
         log.info("✔️ 告警已确认: {} - {}", alarm.getType(), alarm.getOriginatorName());
+        
+        // ⭐ 清理评估上下文，确保下次重新计时
+        alarmEvaluator.clearContextByAlarmType(alarm.getOriginator(), alarm.getType());
+        log.debug("已清理告警 {} 的评估上下文（重新计时）", alarm.getType());
         
         return saved;
     }
