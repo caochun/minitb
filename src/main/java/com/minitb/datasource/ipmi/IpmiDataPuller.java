@@ -276,6 +276,7 @@ public class IpmiDataPuller {
 
     /**
      * 根据传感器名查找读数，包含常见别名与宽松匹配。
+     * ⭐ 优先精确匹配，避免误匹配（如 M2_AMB_TEMP 不应匹配 MB_TEMP 别名）
      */
     private SensorReading findSensorReading(Map<String, SensorReading> sensorData, String sensorName) {
         if (sensorData == null || sensorName == null) {
@@ -283,33 +284,44 @@ public class IpmiDataPuller {
         }
         // 1) 精确匹配（区分大小写）
         SensorReading reading = sensorData.get(sensorName);
-        if (reading != null) return reading;
+        if (reading != null) {
+            log.debug("  ✓ 精确匹配传感器: {}", sensorName);
+            return reading;
+        }
 
         // 2) 不区分大小写匹配
         for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
             if (entry.getKey().equalsIgnoreCase(sensorName)) {
+                log.debug("  ✓ 不区分大小写匹配: {} → {}", sensorName, entry.getKey());
                 return entry.getValue();
             }
         }
 
-        // 3) 规范化名称后匹配（去除非字母数字、下划线转空）
+        // 3) 规范化名称后匹配（去除非字母数字）
         String normalizedTarget = normalizeName(sensorName);
         for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
             if (normalizeName(entry.getKey()).equals(normalizedTarget)) {
+                log.debug("  ✓ 规范化匹配: {} → {}", sensorName, entry.getKey());
                 return entry.getValue();
             }
         }
 
         // 4) 常见别名匹配（主板温度等）
+        // ⚠️ 只对 *明确* 是主板温度的配置启用别名，避免误匹配
         List<String> aliases = getAliasesFor(sensorName);
         if (!aliases.isEmpty()) {
+            log.debug("  🔍 尝试别名匹配: {} → 别名: {}", sensorName, aliases);
             for (String alias : aliases) {
                 // 先尝试精确
                 reading = sensorData.get(alias);
-                if (reading != null) return reading;
+                if (reading != null) {
+                    log.debug("  ✓ 别名精确匹配: {} → {}", sensorName, alias);
+                    return reading;
+                }
                 // 再尝试不区分大小写
                 for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
                     if (entry.getKey().equalsIgnoreCase(alias)) {
+                        log.debug("  ✓ 别名不区分大小写匹配: {} → {}", sensorName, entry.getKey());
                         return entry.getValue();
                     }
                 }
@@ -317,12 +329,14 @@ public class IpmiDataPuller {
                 String normAlias = normalizeName(alias);
                 for (Map.Entry<String, SensorReading> entry : sensorData.entrySet()) {
                     if (normalizeName(entry.getKey()).equals(normAlias)) {
+                        log.debug("  ✓ 别名规范化匹配: {} → {}", sensorName, entry.getKey());
                         return entry.getValue();
                     }
                 }
             }
         }
 
+        log.debug("  ✗ 未找到匹配的传感器: {}", sensorName);
         return null;
     }
 
