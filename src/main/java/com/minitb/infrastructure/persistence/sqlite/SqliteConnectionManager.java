@@ -31,6 +31,7 @@ public class SqliteConnectionManager {
     private String dbPath;
     
     private Connection connection;
+    private String jdbcUrl;
     private final Object connectionLock = new Object();  // ⭐ 连接锁，保证线程安全
     
     @PostConstruct
@@ -45,18 +46,13 @@ public class SqliteConnectionManager {
             log.info("创建数据库目录: {} (成功: {})", parentDir.getAbsolutePath(), created);
         }
         
+        // 保存 JDBC URL
+        jdbcUrl = "jdbc:sqlite:" + dbPath;
+        
         // 建立连接
-        String url = "jdbc:sqlite:" + dbPath;
-        connection = DriverManager.getConnection(url);
+        connection = createConnection();
         
-        // 启用外键约束和优化设置
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("PRAGMA foreign_keys = ON");
-            stmt.execute("PRAGMA busy_timeout = 5000");  // ⭐ 设置锁超时 5 秒
-            stmt.execute("PRAGMA journal_mode = WAL");    // ⭐ 启用 WAL 模式，提升并发性能
-        }
-        
-        log.info("SQLite 连接已建立: {} (WAL模式)", url);
+        log.info("SQLite 连接已建立: {} (WAL模式)", jdbcUrl);
         
         // 初始化表结构
         createTablesIfNotExist();
@@ -65,12 +61,37 @@ public class SqliteConnectionManager {
     }
     
     /**
+     * 创建新的数据库连接
+     */
+    private Connection createConnection() throws SQLException {
+        Connection conn = DriverManager.getConnection(jdbcUrl);
+        // 启用外键约束和优化设置
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON");
+            stmt.execute("PRAGMA busy_timeout = 5000");  // ⭐ 设置锁超时 5 秒
+            stmt.execute("PRAGMA journal_mode = WAL");    // ⭐ 启用 WAL 模式，提升并发性能
+        }
+        return conn;
+    }
+    
+    /**
      * 获取数据库连接
-     * ⭐ 使用同步锁保证线程安全
+     * ⭐ 自动检查连接有效性，失效则重连
      */
     public Connection getConnection() {
         synchronized (connectionLock) {
-            return connection;
+            try {
+                // 检查连接是否有效
+                if (connection == null || connection.isClosed()) {
+                    log.warn("SQLite 连接已关闭，正在重新连接...");
+                    connection = createConnection();
+                    log.info("SQLite 连接已重新建立");
+                }
+                return connection;
+            } catch (SQLException e) {
+                log.error("获取 SQLite 连接失败", e);
+                throw new RuntimeException("Failed to get SQLite connection", e);
+            }
         }
     }
     
