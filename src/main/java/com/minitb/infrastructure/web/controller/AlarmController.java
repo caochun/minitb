@@ -116,38 +116,53 @@ public class AlarmController {
      */
     @GetMapping("/stats")
     public AlarmStatsDto getAlarmStats() {
-        List<Alarm> allAlarms = alarmService.findAllActive();
-        
-        long total = allAlarms.size();
-        long unacknowledged = alarmService.countByStatus(AlarmStatus.ACTIVE_UNACK) + 
-                              alarmService.countByStatus(AlarmStatus.CLEARED_UNACK);
-        long cleared = alarmService.countByStatus(AlarmStatus.CLEARED_ACK) + 
-                       alarmService.countByStatus(AlarmStatus.CLEARED_UNACK);
-        
-        // 按严重程度统计
-        long critical = allAlarms.stream()
-            .filter(a -> a.getSeverity() == AlarmSeverity.CRITICAL)
-            .count();
-        long major = allAlarms.stream()
-            .filter(a -> a.getSeverity() == AlarmSeverity.MAJOR)
-            .count();
-        long minor = allAlarms.stream()
-            .filter(a -> a.getSeverity() == AlarmSeverity.MINOR)
-            .count();
-        long warning = allAlarms.stream()
-            .filter(a -> a.getSeverity() == AlarmSeverity.WARNING)
-            .count();
-        
-        return AlarmStatsDto.builder()
-            .total(total)
-            .active(total - cleared)
-            .unacknowledged(unacknowledged)
-            .cleared(cleared)
-            .critical(critical)
-            .major(major)
-            .minor(minor)
-            .warning(warning)
-            .build();
+        try {
+            List<Alarm> allAlarms = alarmService.findAllActive();
+            
+            long total = allAlarms.size();
+            long unacknowledged = alarmService.countByStatus(AlarmStatus.ACTIVE_UNACK) + 
+                                  alarmService.countByStatus(AlarmStatus.CLEARED_UNACK);
+            long cleared = alarmService.countByStatus(AlarmStatus.CLEARED_ACK) + 
+                           alarmService.countByStatus(AlarmStatus.CLEARED_UNACK);
+            
+            // 按严重程度统计
+            long critical = allAlarms.stream()
+                .filter(a -> a.getSeverity() == AlarmSeverity.CRITICAL)
+                .count();
+            long major = allAlarms.stream()
+                .filter(a -> a.getSeverity() == AlarmSeverity.MAJOR)
+                .count();
+            long minor = allAlarms.stream()
+                .filter(a -> a.getSeverity() == AlarmSeverity.MINOR)
+                .count();
+            long warning = allAlarms.stream()
+                .filter(a -> a.getSeverity() == AlarmSeverity.WARNING)
+                .count();
+            
+            return AlarmStatsDto.builder()
+                .total(total)
+                .active(total - cleared)
+                .unacknowledged(unacknowledged)
+                .cleared(cleared)
+                .critical(critical)
+                .major(major)
+                .minor(minor)
+                .warning(warning)
+                .build();
+        } catch (Exception e) {
+            log.error("获取告警统计失败", e);
+            // 返回空统计
+            return AlarmStatsDto.builder()
+                .total(0)
+                .active(0)
+                .unacknowledged(0)
+                .cleared(0)
+                .critical(0)
+                .major(0)
+                .minor(0)
+                .warning(0)
+                .build();
+        }
     }
 }
 
