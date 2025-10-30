@@ -353,6 +353,17 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
             }
         }
         
+        // ⭐ 处理可空字段：ackTs 和 clearTs
+        Long ackTs = rs.getLong("ack_ts");
+        if (rs.wasNull()) {
+            ackTs = null;
+        }
+        
+        Long clearTs = rs.getLong("clear_ts");
+        if (rs.wasNull()) {
+            clearTs = null;
+        }
+        
         return Alarm.builder()
             .id(AlarmId.fromString(rs.getString("id")))
             .originator(DeviceId.fromString(rs.getString("device_id")))
@@ -361,8 +372,8 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
             .severity(AlarmSeverity.valueOf(rs.getString("severity")))
             .startTs(rs.getLong("start_ts"))
             .endTs(rs.getLong("end_ts"))
-            .ackTs(rs.getLong("ack_ts"))
-            .clearTs(rs.getLong("clear_ts"))
+            .ackTs(ackTs)
+            .clearTs(clearTs)
             .details(details)
             .createdTime(rs.getLong("created_time"))
             .build();
