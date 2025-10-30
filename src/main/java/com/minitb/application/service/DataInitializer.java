@@ -6,7 +6,6 @@ import com.minitb.domain.device.DeviceProfile;
 import com.minitb.domain.device.IpmiDeviceConfiguration;
 import com.minitb.domain.device.PrometheusDeviceConfiguration;
 import com.minitb.domain.device.TelemetryDefinition;
-import com.minitb.domain.id.DeviceId;
 import com.minitb.domain.id.DeviceProfileId;
 import com.minitb.domain.protocol.IpmiConfig;
 import com.minitb.domain.protocol.PrometheusConfig;
@@ -67,6 +66,10 @@ public class DataInitializer implements CommandLineRunner {
             DeviceProfileId bmcProfileId = ensureBmcMonitorProfileExists();
             ensureBmcDeviceExists(bmcProfileId);
         }
+
+        // ========== 5. 初始化 Website 可用性监控（基于 Prometheus/blackbox） ==========
+        DeviceProfileId websiteProfileId = ensureWebsiteMonitorProfileExists();
+        ensureWebsiteDeviceExists(websiteProfileId);
     }
     
     /**
@@ -479,6 +482,104 @@ public class DataInitializer implements CommandLineRunner {
                 .build());
         
         return defs;
+    }
+
+    /**
+     * 确保 Website 监控 DeviceProfile 存在（使用 Prometheus/blackbox 指标）
+     */
+    private DeviceProfileId ensureWebsiteMonitorProfileExists() {
+        Optional<DeviceProfile> existing = deviceService.findProfileByName("Website Uptime Monitor");
+        if (existing.isPresent()) {
+            log.info("Website 监控配置文件已存在，使用现有配置 (ID: {})", existing.get().getId());
+            return existing.get().getId();
+        }
+
+        log.info("创建 Website 监控配置文件...");
+        DeviceProfile profile = DeviceProfile.builder()
+                .name("Website Uptime Monitor")
+                .description("基于 Prometheus/blackbox_exporter 的网站可用性与证书监控")
+                .dataSourceType(DeviceProfile.DataSourceType.PROMETHEUS)
+                .strictMode(true)
+                .telemetryDefinitions(createWebsiteTelemetryDefinitions())
+                .createdTime(System.currentTimeMillis())
+                .build();
+
+        DeviceProfile saved = deviceService.saveProfile(profile);
+        log.info("✓ DeviceProfile 创建: {} (ID: {})", saved.getName(), saved.getId());
+        return saved.getId();
+    }
+
+    /**
+     * 创建 Website 监控遥测定义
+     * 依赖 Prometheus 中 blackbox_exporter 采集的指标：probe_success / probe_http_status_code / probe_ssl_earliest_cert_expiry
+     */
+    private List<TelemetryDefinition> createWebsiteTelemetryDefinitions() {
+        List<TelemetryDefinition> defs = new ArrayList<>();
+
+        // 1) 存活/可达性 (1/0)
+        defs.add(TelemetryDefinition.builder()
+                .key("website_alive")
+                .displayName("网站可达")
+                .dataType(DataType.DOUBLE)
+                .unit("")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("probe_success{job=\"blackbox-http\", instance=\"http://www.js.sgcc.com.cn\"}")
+                        .build())
+                .build());
+
+        // 2) HTTP 状态码
+        defs.add(TelemetryDefinition.builder()
+                .key("http_status_code")
+                .displayName("HTTP状态码")
+                .dataType(DataType.DOUBLE)
+                .unit("")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("probe_http_status_code{job=\"blackbox-http\", instance=\"http://www.js.sgcc.com.cn\"}")
+                        .build())
+                .build());
+
+        // 3) 证书剩余天数（如为 HTTP 则可能无意义）
+        defs.add(TelemetryDefinition.builder()
+                .key("ssl_days_to_expiry")
+                .displayName("证书剩余天数")
+                .dataType(DataType.DOUBLE)
+                .unit("days")
+                .protocolConfig(PrometheusConfig.builder()
+                        .promQL("(probe_ssl_earliest_cert_expiry{job=\"blackbox-http\", instance=\"http://www.js.sgcc.com.cn\"} - time()) / 86400")
+                        .build())
+                .build());
+
+        return defs;
+    }
+
+    /**
+     * 确保 Website 设备存在
+     */
+    private void ensureWebsiteDeviceExists(DeviceProfileId profileId) {
+        String accessToken = "website-js-sgcc-token";
+
+        if (deviceService.existsByAccessToken(accessToken)) {
+            log.info("Website 设备已存在，跳过创建 (token: {})", accessToken);
+            return;
+        }
+
+        Device device = Device.builder()
+                .name("JS SGCC Website")
+                .type("WEBSITE")
+                .deviceProfileId(profileId)
+                .accessToken(accessToken)
+                .configuration(PrometheusDeviceConfiguration.builder()
+                        .endpoint("http://localhost:9090")
+                        // 使用 blackbox 的 instance 标签进行绑定
+                        .label("instance=http://www.js.sgcc.com.cn")
+                        .build())
+                .createdTime(System.currentTimeMillis())
+                .build();
+
+        Device saved = deviceService.save(device);
+        log.info("✓ Website Device 创建: {} (ID: {})", saved.getName(), saved.getId());
+        log.info("  - AccessToken: {}", saved.getAccessToken());
+        log.info("  - Prometheus Endpoint: http://localhost:9090");
     }
     
     /**

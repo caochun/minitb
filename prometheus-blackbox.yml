@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+
+scrape_configs:
+  # Prometheus 自身指标（可选）
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 通过 blackbox_exporter 进行 HTTP 可达性探测
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://www.js.sgcc.com.cn
+          # 如需添加更多目标，按行追加即可：
+          # - https://example.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: instance
+        source_labels: [__param_target]
+      - target_label: __address__
+        replacement: localhost:9115  # 你的 blackbox_exporter 地址
+
+

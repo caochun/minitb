@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website 可用性监控</title>
+    <link rel="icon" href="data:,">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; margin: 0; color: #1f2937; background: #f8fafc; }
+        header { background: #0f172a; color: #fff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+        header a { color: #93c5fd; text-decoration: none; font-size: 14px; }
+        .container { padding: 20px; max-width: 1100px; margin: 0 auto; }
+        .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .tab { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer; font-size: 14px; }
+        .tab.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .metric-label { color: #6b7280; font-size: 14px; margin-bottom: 6px; }
+        .metric-value { font-size: 28px; font-weight: 700; display: flex; align-items: baseline; gap: 6px; }
+        .metric-unit { color: #9ca3af; font-size: 14px; font-weight: 500; }
+        .status { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+        .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+        .dot.up { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.15); }
+        .dot.down { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.15); }
+        .footer { margin-top: 14px; color: #6b7280; font-size: 13px; }
+        .error { display:none; margin-top: 10px; color: #b91c1c; font-size: 14px; }
+    </style>
+    <script defer src="website-monitor.js"></script>
+    <script>
+        // 允许通过 ?deviceId=xxx 直达指定设备
+        window.__QUERY__ = new URLSearchParams(location.search);
+    </script>
+    </head>
+<body>
+    <header>
+        <div>Website 可用性监控</div>
+        <div>
+            <a href="/">返回首页</a>
+        </div>
+    </header>
+    <div class="container">
+        <div id="deviceTabs" class="tabs"></div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="metric-label">站点状态</div>
+                <div class="metric-value" id="alive">
+                    <span class="status"><span class="dot" id="aliveDot"></span><span id="aliveText">--</span></span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="metric-label">HTTP 状态码</div>
+                <div class="metric-value"><span id="httpCode">--</span></div>
+            </div>
+
+            <div class="card">
+                <div class="metric-label">目标</div>
+                <div class="metric-value" style="font-size:18px; font-weight:600"><span id="target">--</span></div>
+                <div class="footer">Device: <span id="deviceName">--</span></div>
+            </div>
+
+            <div class="card">
+                <div class="metric-label">最后更新</div>
+                <div class="metric-value" style="font-size:20px; font-weight:600"><span id="updateTime">--</span></div>
+                <div class="footer" id="status">● 初始化中</div>
+            </div>
+        </div>
+
+        <div id="error" class="error"></div>
+    </div>
+</body>
+</html>
+
+
