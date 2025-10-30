@@ -11,6 +11,8 @@ class AlarmNotificationService {
     constructor() {
         this.eventSource = null;
         this.notificationContainer = null;
+        // 以 设备ID+告警类型 作为唯一键，确保同一设备同一类型的告警持久且不重复
+        this.activeNotifications = new Map();
         this.init();
     }
 
@@ -75,9 +77,20 @@ class AlarmNotificationService {
     showNotification(alarm) {
         console.log('收到告警通知:', alarm);
 
-        // 创建通知元素
-        const notification = document.createElement('div');
-        notification.className = `alarm-notification alarm-${alarm.severity.toLowerCase()} alarm-${alarm.action}`;
+        // 对于同一设备同一类型的告警，使用同一条通知进行更新，不创建重复项
+        const key = `${alarm.deviceId || alarm.deviceName}:${alarm.type}`;
+        let notification = this.activeNotifications.get(key);
+        const isUpdate = Boolean(notification);
+        if (!notification) {
+            // 创建通知元素
+            notification = document.createElement('div');
+            notification.className = `alarm-notification alarm-${alarm.severity.toLowerCase()} alarm-${alarm.action}`;
+            // 存储键值用于后续查找
+            notification.dataset.alarmKey = key;
+        } else {
+            // 更新严重程度样式类
+            notification.className = `alarm-notification alarm-${alarm.severity.toLowerCase()} alarm-${alarm.action}`;
+        }
         
         // 根据 action 生成不同的图标和文本
         const actionInfo = this.getActionInfo(alarm.action, alarm.notificationCount || 1);
@@ -114,10 +127,7 @@ class AlarmNotificationService {
                             ${alarm.deviceName}
                         </div>
                     </div>
-                    <div style="font-size: 20px; cursor: pointer; opacity: 0.7; flex-shrink: 0;"
-                         onclick="this.parentElement.parentElement.parentElement.remove()">
-                        ×
-                    </div>
+                    <!-- 移除手动关闭按钮，要求必须确认或忽略才消失 -->
                 </div>
                 <div style="display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);">
                     <button onclick="handleAcknowledge('${alarm.id}', this)" 
@@ -182,19 +192,12 @@ class AlarmNotificationService {
             document.head.appendChild(style);
         }
 
-        // 添加到容器
-        this.notificationContainer.appendChild(notification);
-
-        // 1 分钟后自动消失
-        const autoCloseTimer = setTimeout(() => {
-            notification.style.animation = 'slideOutRight 0.3s ease-out';
-            setTimeout(() => {
-                notification.remove();
-            }, 300);
-        }, 60000);  // 60 秒 = 1 分钟
-        
-        // 存储定时器ID，用于手动关闭时取消
-        notification.dataset.autoCloseTimer = autoCloseTimer;
+        // 添加或更新到容器，且不自动消失（直到用户确认或忽略）
+        if (!isUpdate) {
+            this.notificationContainer.appendChild(notification);
+        }
+        // 记录活动通知
+        this.activeNotifications.set(key, notification);
     }
 
     /**
@@ -283,12 +286,12 @@ class AlarmNotificationService {
      * 关闭通知弹窗
      */
     closeNotification(notificationElement) {
-        // 取消自动关闭定时器
-        const timerId = notificationElement.dataset.autoCloseTimer;
-        if (timerId) {
-            clearTimeout(parseInt(timerId));
+        // 从活动集合中移除
+        const key = notificationElement.dataset.alarmKey;
+        if (key && this.activeNotifications.has(key)) {
+            this.activeNotifications.delete(key);
         }
-        
+
         notificationElement.style.animation = 'slideOutRight 0.3s ease-out';
         setTimeout(() => {
             notificationElement.remove();
