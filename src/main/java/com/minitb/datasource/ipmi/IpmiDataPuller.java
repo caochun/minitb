@@ -140,7 +140,15 @@ public class IpmiDataPuller {
         
         // 4. 执行 ipmitool sensor list 获取所有传感器数据
         Map<String, SensorReading> sensorData = executeSensorList(config);
-        log.debug("从 {} 获取到 {} 个传感器数据", config.getHost(), sensorData.size());
+        log.info("从 {} 获取到 {} 个传感器数据", config.getHost(), sensorData.size());
+        
+        // ⭐ 临时调试：打印所有可用的传感器名称
+        if (!sensorData.isEmpty()) {
+            log.info("📋 可用传感器列表:");
+            sensorData.keySet().stream()
+                .sorted()
+                .forEach(name -> log.info("  - {}", name));
+        }
         
         // 5. 根据 TelemetryDefinition 提取需要的指标
         Map<String, Object> telemetryData = new HashMap<>();
