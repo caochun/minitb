@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minitb.domain.alarm.*;
 import com.minitb.domain.id.AlarmId;
 import com.minitb.domain.id.DeviceId;
-import com.minitb.infrastructure.persistence.sqlite.SqliteConnectionManager;
+import com.minitb.infrastructure.persistence.sqlite.DatabaseConnectionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -23,10 +23,10 @@ import java.util.Optional;
 @Slf4j
 public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
     
-    private final SqliteConnectionManager connectionManager;
+    private final DatabaseConnectionManager connectionManager;  // ⭐ 改用接口
     private final ObjectMapper objectMapper;
     
-    public SqliteAlarmRepositoryAdapter(SqliteConnectionManager connectionManager, ObjectMapper objectMapper) {
+    public SqliteAlarmRepositoryAdapter(DatabaseConnectionManager connectionManager, ObjectMapper objectMapper) {
         this.connectionManager = connectionManager;
         this.objectMapper = objectMapper;
         initTable();

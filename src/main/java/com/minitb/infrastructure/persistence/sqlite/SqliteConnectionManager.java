@@ -5,6 +5,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -22,10 +23,15 @@ import java.sql.Statement;
  * - 初始化表结构
  * - 连接生命周期管理
  */
-@Component
-@ConditionalOnProperty(name = "minitb.storage.type", havingValue = "sqlite")
+@Component("sqliteConnectionManager")
+@ConditionalOnProperty(
+    prefix = "minitb.storage.sqlite",
+    name = "use-hikari",
+    havingValue = "false",
+    matchIfMissing = true  // ⭐ 默认使用此实现
+)
 @Slf4j
-public class SqliteConnectionManager {
+public class SqliteConnectionManager implements DatabaseConnectionManager {
     
     @Value("${minitb.storage.sqlite.path:data/minitb.db}")
     private String dbPath;
@@ -78,6 +84,7 @@ public class SqliteConnectionManager {
      * 获取数据库连接
      * ⭐ 自动检查连接有效性，失效则重连
      */
+    @Override
     public Connection getConnection() {
         synchronized (connectionLock) {
             try {
@@ -189,6 +196,7 @@ public class SqliteConnectionManager {
     /**
      * 检查连接是否有效
      */
+    @Override
     public boolean isConnected() {
         synchronized (connectionLock) {
             try {

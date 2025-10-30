@@ -30,7 +30,7 @@ import java.util.Optional;
 @Slf4j
 public class SqliteDeviceProfileRepositoryAdapter implements DeviceProfileRepository {
     
-    private final SqliteConnectionManager connectionManager;
+    private final DatabaseConnectionManager connectionManager;  // ⭐ 改用接口
     private final DeviceProfileRowMapper profileMapper;
     private static final ObjectMapper objectMapper = new ObjectMapper();
     

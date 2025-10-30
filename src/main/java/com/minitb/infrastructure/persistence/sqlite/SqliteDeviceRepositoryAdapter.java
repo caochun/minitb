@@ -28,7 +28,7 @@ import java.util.Optional;
 @Slf4j
 public class SqliteDeviceRepositoryAdapter implements DeviceRepository {
     
-    private final SqliteConnectionManager connectionManager;
+    private final DatabaseConnectionManager connectionManager;  // ⭐ 改用接口
     private final DeviceRowMapper deviceMapper;
     
     @Override
