@@ -1,5 +1,6 @@
 package com.minitb.infrastructure.web.controller;
 
+import com.minitb.application.service.alarm.AlarmNotificationService;
 import com.minitb.application.service.alarm.AlarmService;
 import com.minitb.domain.alarm.Alarm;
 import com.minitb.domain.alarm.AlarmSeverity;
@@ -24,9 +25,11 @@ import java.util.stream.Collectors;
 public class AlarmController {
     
     private final AlarmService alarmService;
+    private final AlarmNotificationService notificationService;
     
-    public AlarmController(AlarmService alarmService) {
+    public AlarmController(AlarmService alarmService, AlarmNotificationService notificationService) {
         this.alarmService = alarmService;
+        this.notificationService = notificationService;
     }
     
     /**
@@ -109,6 +112,28 @@ public class AlarmController {
     public ResponseEntity<Void> deleteAlarm(@PathVariable String alarmId) {
         alarmService.deleteAlarm(AlarmId.fromString(alarmId));
         return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * 测试端点：重新推送所有活动告警
+     * 用于测试前端告警通知功能
+     */
+    @PostMapping("/test/resend-active")
+    public ResponseEntity<String> resendActiveAlarms() {
+        List<Alarm> activeAlarms = alarmService.findAllActive();
+        
+        if (activeAlarms.isEmpty()) {
+            return ResponseEntity.ok("没有活动告警需要推送");
+        }
+        
+        int count = 0;
+        for (Alarm alarm : activeAlarms) {
+            notificationService.notifyAlarmCreated(alarm);
+            count++;
+        }
+        
+        log.info("重新推送了 {} 个活动告警到前端", count);
+        return ResponseEntity.ok("成功推送 " + count + " 个活动告警");
     }
     
     /**

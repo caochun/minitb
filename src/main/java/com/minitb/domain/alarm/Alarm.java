@@ -79,6 +79,19 @@ public class Alarm {
      */
     private long createdTime;
     
+    /**
+     * 最后一次通知时间（毫秒时间戳）
+     * 用于重复推送告警通知
+     */
+    private Long lastNotificationTs;
+    
+    /**
+     * 通知次数
+     * 记录告警被推送的总次数
+     */
+    @Builder.Default
+    private int notificationCount = 0;
+    
     // ==================== 领域行为 ====================
     
     /**
@@ -161,6 +174,31 @@ public class Alarm {
             return clearTs - startTs;
         }
         return System.currentTimeMillis() - startTs;
+    }
+    
+    /**
+     * 记录一次通知推送
+     */
+    public void recordNotification() {
+        this.lastNotificationTs = System.currentTimeMillis();
+        this.notificationCount++;
+    }
+    
+    /**
+     * 检查是否需要重复推送通知
+     * 
+     * @param intervalMillis 重复间隔（毫秒）
+     * @return true 如果需要推送
+     */
+    public boolean needsRepeatNotification(long intervalMillis) {
+        // 未确认的活动告警才需要重复推送
+        if (!getStatus().equals(AlarmStatus.ACTIVE_UNACK)) {
+            return false;
+        }
+        
+        // 从未推送过，或距离上次推送超过间隔
+        return lastNotificationTs == null || 
+               (System.currentTimeMillis() - lastNotificationTs) >= intervalMillis;
     }
     
     

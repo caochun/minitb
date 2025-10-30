@@ -1,0 +1,28 @@
+# ============================================
+# HikariCP 连接池配置
+# ============================================
+# 使用方式: mvn spring-boot:run -Dspring.profiles.active=hikari
+# 或在 application.yml 中设置 spring.profiles.active: hikari
+
+minitb:
+  storage:
+    type: sqlite
+    sqlite:
+      path: data/minitb.db
+      use-hikari: true  # ⭐ 启用 HikariCP 连接池
+      
+  datasource:
+    ipmi:
+      enabled: true
+      pull-interval: 10000
+      initial-delay: 10000
+    prometheus:
+      enabled: true
+      pull-interval: 10000
+      initial-delay: 3000
+
+# 其他配置继承自 application.yml
+spring:
+  application:
+    name: minitb-hikari
+

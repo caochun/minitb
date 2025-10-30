@@ -48,7 +48,9 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
                 ack_ts INTEGER,
                 clear_ts INTEGER,
                 details TEXT,
-                created_time INTEGER NOT NULL
+                created_time INTEGER NOT NULL,
+                last_notification_ts INTEGER,
+                notification_count INTEGER DEFAULT 0
             );
             
             CREATE INDEX IF NOT EXISTS idx_alarm_device_id ON alarm(device_id);
@@ -70,15 +72,18 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
     public Alarm save(Alarm alarm) {
         String sql = """
             INSERT INTO alarm (id, device_id, device_name, type, severity, 
-                               start_ts, end_ts, ack_ts, clear_ts, details, created_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               start_ts, end_ts, ack_ts, clear_ts, details, created_time,
+                               last_notification_ts, notification_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 device_name = excluded.device_name,
                 severity = excluded.severity,
                 end_ts = excluded.end_ts,
                 ack_ts = excluded.ack_ts,
                 clear_ts = excluded.clear_ts,
-                details = excluded.details
+                details = excluded.details,
+                last_notification_ts = excluded.last_notification_ts,
+                notification_count = excluded.notification_count
             """;
         
         Connection conn = connectionManager.getConnection();
@@ -95,6 +100,8 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
             ps.setObject(9, alarm.getClearTs());
             ps.setString(10, alarm.getDetails() != null ? alarm.getDetails().toString() : null);
             ps.setLong(11, alarm.getCreatedTime());
+            ps.setObject(12, alarm.getLastNotificationTs());
+            ps.setInt(13, alarm.getNotificationCount());
             
             ps.executeUpdate();
             return alarm;
@@ -364,6 +371,11 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
             clearTs = null;
         }
         
+        Long lastNotificationTs = rs.getLong("last_notification_ts");
+        if (rs.wasNull()) {
+            lastNotificationTs = null;
+        }
+        
         return Alarm.builder()
             .id(AlarmId.fromString(rs.getString("id")))
             .originator(DeviceId.fromString(rs.getString("device_id")))
@@ -376,6 +388,8 @@ public class SqliteAlarmRepositoryAdapter implements AlarmRepository {
             .clearTs(clearTs)
             .details(details)
             .createdTime(rs.getLong("created_time"))
+            .lastNotificationTs(lastNotificationTs)
+            .notificationCount(rs.getInt("notification_count"))
             .build();
     }
 }

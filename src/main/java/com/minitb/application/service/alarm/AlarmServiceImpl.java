@@ -17,9 +17,11 @@ import java.util.Optional;
 public class AlarmServiceImpl implements AlarmService {
     
     private final AlarmRepository alarmRepository;
+    private final AlarmNotificationService notificationService;
     
-    public AlarmServiceImpl(AlarmRepository alarmRepository) {
+    public AlarmServiceImpl(AlarmRepository alarmRepository, AlarmNotificationService notificationService) {
         this.alarmRepository = alarmRepository;
+        this.notificationService = notificationService;
     }
     
     @Override
@@ -37,8 +39,14 @@ public class AlarmServiceImpl implements AlarmService {
             .createdTime(now)
             .build();
         
+        // 记录首次通知
+        alarm.recordNotification();
+        
         Alarm saved = alarmRepository.save(alarm);
         log.info("✅ 告警已创建: {} [{}] - {}", alarmType, severity, deviceName);
+        
+        // 推送实时通知
+        notificationService.notifyAlarmCreated(saved);
         
         return saved;
     }
@@ -56,6 +64,10 @@ public class AlarmServiceImpl implements AlarmService {
                 Alarm updated = alarmRepository.save(alarm);
                 log.info("⚠️ 告警严重程度已更新: {} {} → {} - {}", 
                     alarmType, existing.get().getSeverity(), severity, deviceName);
+                
+                // 推送更新通知
+                notificationService.notifyAlarmUpdated(updated);
+                
                 return updated;
             }
             // 严重程度相同，不需要更新
@@ -82,6 +94,9 @@ public class AlarmServiceImpl implements AlarmService {
         alarm.clear();
         Alarm saved = alarmRepository.save(alarm);
         log.info("🔕 告警已清除: {} - {}", alarm.getType(), alarm.getOriginatorName());
+        
+        // ⚠️ 不推送清除通知 - 避免用户操作后又收到推送
+        // notificationService.notifyAlarmCleared(saved);
         
         return saved;
     }
@@ -162,6 +177,11 @@ public class AlarmServiceImpl implements AlarmService {
     @Override
     public long countByStatus(AlarmStatus status) {
         return alarmRepository.countByStatus(status);
+    }
+    
+    @Override
+    public Alarm save(Alarm alarm) {
+        return alarmRepository.save(alarm);
     }
 }
 

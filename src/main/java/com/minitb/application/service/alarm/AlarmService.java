@@ -66,6 +66,14 @@ public interface AlarmService {
     Alarm acknowledgeAlarm(AlarmId alarmId);
     
     /**
+     * 保存告警（更新）
+     * 
+     * @param alarm 告警对象
+     * @return 保存后的告警
+     */
+    Alarm save(Alarm alarm);
+    
+    /**
      * 根据 ID 查找告警
      */
     Optional<Alarm> findById(AlarmId id);

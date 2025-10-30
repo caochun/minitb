@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>告警推送测试 - MiniTB</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 16px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #48bb78;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        
+        .status.disconnected {
+            background: #fc8181;
+        }
+        
+        .content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            color: #2d3748;
+            font-size: 20px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        
+        .log-container {
+            background: #1a202c;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-left: 3px solid #4a5568;
+        }
+        
+        .log-entry.info {
+            border-left-color: #3b82f6;
+        }
+        
+        .log-entry.success {
+            border-left-color: #10b981;
+        }
+        
+        .log-entry.error {
+            border-left-color: #ef4444;
+        }
+        
+        .log-time {
+            color: #a0aec0;
+            margin-right: 10px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>
+                📢 告警推送测试
+                <span class="status" id="connectionStatus">● 连接中...</span>
+            </h1>
+            <p>测试 SSE 实时告警推送功能 - 告警会在右上角显示并在 3 秒后自动消失</p>
+        </div>
+        
+        <!-- 内容 -->
+        <div class="content">
+            <!-- 统计信息 -->
+            <div class="section">
+                <h2>📊 实时统计</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-label">已接收告警</div>
+                        <div class="stat-value" id="receivedCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">SSE 连接状态</div>
+                        <div class="stat-value" id="connectionState">等待中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">最后接收时间</div>
+                        <div class="stat-value" style="font-size: 18px;" id="lastReceived">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 测试按钮 -->
+            <div class="section">
+                <h2>🧪 模拟测试</h2>
+                <p style="color: #718096; margin-bottom: 15px;">
+                    点击下面的按钮模拟不同类型的告警推送（仅用于前端UI测试，不会真正创建告警）
+                </p>
+                <div class="test-buttons">
+                    <button class="btn btn-danger" onclick="simulateAlarm('CRITICAL')">
+                        🔴 模拟 CRITICAL 告警
+                    </button>
+                    <button class="btn btn-warning" onclick="simulateAlarm('MAJOR')">
+                        🟠 模拟 MAJOR 告警
+                    </button>
+                    <button class="btn btn-primary" onclick="simulateAlarm('WARNING')">
+                        🔵 模拟 WARNING 告警
+                    </button>
+                    <button class="btn btn-primary" onclick="resendActiveAlarms()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        📡 推送当前活动告警
+                    </button>
+                    <button class="btn btn-primary" onclick="clearLog()">
+                        🧹 清空日志
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 日志 -->
+            <div class="section">
+                <h2>📋 事件日志</h2>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry info">
+                        <span class="log-time">[等待]</span> 等待 SSE 连接建立...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let receivedCount = 0;
+        let eventSource = null;
+        
+        // 连接 SSE
+        function connectSSE() {
+            logEvent('正在连接 SSE 服务器...', 'info');
+            updateConnectionStatus('连接中...', 'connecting');
+            
+            eventSource = new EventSource('/api/alarms/notifications/stream');
+            
+            // 监听 alarm 事件
+            eventSource.addEventListener('alarm', (event) => {
+                receivedCount++;
+                const alarm = JSON.parse(event.data);
+                
+                logEvent(`收到告警: ${alarm.type} [${alarm.severity}] - ${alarm.deviceName}`, 'success');
+                updateStats();
+            });
+            
+            // onopen 在某些浏览器可能不触发，使用定时器检查状态
+            eventSource.onopen = () => {
+                logEvent('✅ SSE 连接已建立', 'success');
+                updateConnectionStatus('已连接', 'connected');
+            };
+            
+            // 备用方案：2秒后检查连接状态
+            setTimeout(() => {
+                if (eventSource && eventSource.readyState === EventSource.OPEN) {
+                    if (document.getElementById('connectionState').textContent !== '已连接') {
+                        logEvent('✅ SSE 连接已建立（状态检查）', 'success');
+                        updateConnectionStatus('已连接', 'connected');
+                    }
+                }
+            }, 2000);
+            
+            eventSource.onerror = (error) => {
+                logEvent('❌ SSE 连接错误，5秒后重试...', 'error');
+                updateConnectionStatus('连接断开', 'disconnected');
+                
+                eventSource.close();
+                setTimeout(connectSSE, 5000);
+            };
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(text, state) {
+            const statusEl = document.getElementById('connectionStatus');
+            const stateEl = document.getElementById('connectionState');
+            
+            statusEl.textContent = `● ${text}`;
+            stateEl.textContent = state === 'connected' ? '已连接' : 
+                                  state === 'connecting' ? '连接中' : '已断开';
+            
+            if (state === 'connected') {
+                statusEl.className = 'status';
+            } else {
+                statusEl.className = 'status disconnected';
+            }
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('receivedCount').textContent = receivedCount;
+            document.getElementById('lastReceived').textContent = new Date().toLocaleTimeString();
+        }
+        
+        // 记录日志
+        function logEvent(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 模拟告警（仅用于前端UI测试）
+        function simulateAlarm(severity) {
+            const alarm = {
+                id: 'test-' + Date.now(),
+                deviceId: 'test-device',
+                deviceName: '测试设备',
+                type: '模拟告警测试',
+                severity: severity,
+                status: 'ACTIVE_UNACK',
+                startTs: Date.now(),
+                action: 'created'
+            };
+            
+            logEvent(`模拟告警: ${alarm.type} [${severity}]`, 'info');
+            
+            // 直接调用通知服务的显示方法
+            if (window.alarmNotificationService) {
+                window.alarmNotificationService.showNotification(alarm);
+                receivedCount++;
+                updateStats();
+            }
+        }
+        
+        // 推送当前活动告警（调用后端 API）
+        function resendActiveAlarms() {
+            logEvent('正在请求推送当前活动告警...', 'info');
+            
+            fetch('/api/alarms/test/resend-active', {
+                method: 'POST'
+            })
+            .then(response => response.text())
+            .then(data => {
+                logEvent('✅ ' + data, 'success');
+            })
+            .catch(error => {
+                logEvent('❌ 推送失败: ' + error.message, 'error');
+            });
+        }
+        
+        // 清空日志
+        function clearLog() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '';
+            logEvent('日志已清空', 'info');
+        }
+        
+        // 页面加载完成后连接
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                connectSSE();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
+
